@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>发票智能识别核对系统</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* 顶部导航 */
+      .header {
+        padding: 12px 24px;
+        background: #fff;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+        z-index: 10;
+      }
+      .header h2 {
+        margin: 0;
+        font-size: 18px;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .upload-btn {
+        padding: 8px 20px;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background 0.2s;
+      }
+      .upload-btn:hover {
+        background: #1d4ed8;
+      }
+
+      .main-container {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        background: #f8fafc;
+      }
+
+      /* 左侧预览区 */
+      .preview-pane {
+        flex: 1;
+        background: #525659;
+        overflow: auto;
+        display: flex;
+        justify-content: center;
+        padding: 30px;
+        position: relative;
+      }
+      #pdfCanvas {
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        max-width: 100%;
+        height: auto;
+        align-self: flex-start;
+        background: #fff;
+      }
+      .empty-tip {
+        color: #bbb;
+        align-self: center;
+        font-size: 16px;
+        text-align: center;
+        line-height: 1.5;
+      }
+
+      /* 右侧编辑区 */
+      .edit-pane {
+        width: 400px;
+        min-width: 350px;
+        background: #fff;
+        border-left: 1px solid #e0e0e0;
+        overflow-y: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: -4px 0 12px rgba(0, 0, 0, 0.03);
+        z-index: 5;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+      .form-group label {
+        display: block;
+        font-size: 13px;
+        color: #64748b;
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+      .form-group input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+        transition: all 0.2s;
+        color: #334155;
+      }
+      .form-group input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        outline: none;
+      }
+
+      .section-title {
+        font-size: 15px;
+        font-weight: 700;
+        border-left: 4px solid #2563eb;
+        padding-left: 10px;
+        margin: 24px 0 16px 0;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+      }
+      .section-title:first-child {
+        margin-top: 0;
+      }
+
+      .debug-info {
+        margin-top: auto;
+        border-top: 1px solid #f1f5f9;
+        padding-top: 20px;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      .debug-log {
+        max-height: 100px;
+        overflow-y: auto;
+        font-family: monospace;
+        white-space: pre-wrap;
+        margin-top: 10px;
+      }
+
+      /* 状态指示 */
+      .status-bar {
+        padding: 10px 14px;
+        background: #dcfce7;
+        color: #166534;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: none;
+        font-size: 14px;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #bbf7d0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h2>🧾 发票智能识别核对</h2>
+      <div>
+        <input
+          type="file"
+          id="fileInput"
+          accept=".pdf"
+          style="display: none"
+          onchange="handleFile(this.files[0])"
+        />
+        <button
+          class="upload-btn"
+          onclick="document.getElementById('fileInput').click()"
+        >
+          📂 上传 PDF 发票
+        </button>
+      </div>
+    </div>
+
+    <div class="main-container">
+      <!-- 左侧预览 -->
+      <div class="preview-pane" id="previewContainer">
+        <div class="empty-tip" id="emptyTip">
+          <div style="font-size: 40px; margin-bottom: 10px">📄</div>
+          请点击右上角上传按钮<br />选择 PDF 电子发票进行识别与预览
+        </div>
+        <canvas id="pdfCanvas" style="display: none"></canvas>
+      </div>
+
+      <!-- 右侧核对 -->
+      <div class="edit-pane">
+        <div id="statusMsg" class="status-bar">
+          ✅ 识别成功，请核对并修改下方信息
+        </div>
+
+        <div class="section-title">💰 金额信息</div>
+        <div class="form-group">
+          <label>价税合计 (小写)</label>
+          <input
+            type="text"
+            id="amount"
+            style="color: #dc2626; font-weight: bold; font-size: 18px"
+          />
+        </div>
+
+        <div class="section-title">📝 基础信息</div>
+        <div class="form-group">
+          <label>发票号码</label>
+          <input type="text" id="invoiceNum" />
+        </div>
+        <div class="form-group">
+          <label>发票代码</label>
+          <input type="text" id="invoiceCode" />
+        </div>
+        <div class="form-group">
+          <label>开票日期</label>
+          <input type="text" id="dateStr" />
+        </div>
+        <div class="form-group">
+          <label>校验码</label>
+          <input type="text" id="checkCode" />
+        </div>
+
+        <div class="section-title">🏢 交易方信息</div>
+        <div class="form-group">
+          <label>购买方名称</label>
+          <input type="text" id="purchaserName" />
+        </div>
+        <div class="form-group">
+          <label>销售方名称</label>
+          <input type="text" id="sellerName" />
+        </div>
+
+        <div class="debug-info">
+          <div>🛠️ 调试日志</div>
+          <div id="logs" class="debug-log">等待文件上传...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 使用 ES Module 引入最新版 PDF.js -->
+    <script type="module">
+      import * as pdfjsLib from "./pdfjs-5.4.449-dist/build/pdf.mjs";
+
+      // 配置 Worker (必须也是 ES Module 版本)
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "./pdfjs-5.4.449-dist/build/pdf.worker.mjs";
+
+      // 将 handleFile 挂载到 window 对象，以便 HTML 中的 onchange 可以调用
+      window.handleFile = async function (file) {
+        if (!file) return;
+
+        const statusMsg = document.getElementById("statusMsg");
+        const logsDiv = document.getElementById("logs");
+        const emptyTip = document.getElementById("emptyTip");
+        const canvas = document.getElementById("pdfCanvas");
+
+        // 重置界面
+        statusMsg.style.display = "none";
+        logsDiv.innerHTML = "正在读取文件...";
+
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const loadingTask = pdfjsLib.getDocument({
+            data: arrayBuffer,
+            cMapUrl: "./pdfjs-5.4.449-dist/web/cmaps/",
+            cMapPacked: true,
+          });
+          const pdf = await loadingTask.promise;
+          const page = await pdf.getPage(1);
+
+          // 1. 渲染预览图
+          logsDiv.innerHTML += "\n正在渲染预览...";
+          const scale = 1.5;
+          const viewport = page.getViewport({ scale });
+          const context = canvas.getContext("2d");
+
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+
+          const renderContext = {
+            canvasContext: context,
+            viewport: viewport,
+          };
+          await page.render(renderContext).promise;
+
+          canvas.style.display = "block";
+          emptyTip.style.display = "none";
+
+          // 2. 提取文本数据
+          logsDiv.innerHTML += "\n正在提取文本...";
+          const textContent = await page.getTextContent();
+          const items = textContent.items;
+
+          // 排序逻辑
+          items.sort((a, b) => {
+            const yA = a.transform[5];
+            const yB = b.transform[5];
+            const xA = a.transform[4];
+            const xB = b.transform[4];
+            if (Math.abs(yA - yB) > 5) return yB - yA;
+            return xA - xB;
+          });
+
+          const fullText = items.map((item) => item.str).join("");
+
+          // 提取辅助函数
+          const extract = (regex, text, groupIndex = 1) => {
+            const match = text.match(regex);
+            return match ? match[groupIndex].trim() : "";
+          };
+
+          // --- 字段提取逻辑 ---
+
+          // 基础字段
+          const invoiceNumMatch = fullText.match(
+            /(?:发票号码|号码)[:：]?\s*(\d{20}|\d{8,12})/
+          );
+          const invoiceNum = invoiceNumMatch ? invoiceNumMatch[1] : "";
+
+          let invoiceCode = "无需 (全电发票)";
+          if (!invoiceNum || invoiceNum.length !== 20) {
+            const codeMatch = fullText.match(/发票代码[:：]?\s*(\d{10,12})/);
+            invoiceCode = codeMatch ? codeMatch[1] : "";
+          }
+
+          let dateStr = "";
+          const dateMatch = fullText.match(
+            /(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/
+          );
+          if (dateMatch)
+            dateStr = `${dateMatch[1]}年${dateMatch[2]}月${dateMatch[3]}日`;
+
+          let checkCode = extract(/校验码[:：]?\s*([\d\s]{20,})/, fullText);
+          if (checkCode) checkCode = checkCode.replace(/\s/g, "");
+          if (!checkCode && invoiceNum.length === 20)
+            checkCode = "无需 (全电发票)";
+
+          // 金额字段
+          let amount = "";
+          const totalAmountReg =
+            /价税合计[\s\S]*?小写.*?[¥￥:：]\s*([0-9,]+\.\d{2})/;
+          const totalMatch = fullText.match(totalAmountReg);
+          if (totalMatch) {
+            amount = totalMatch[1];
+          } else {
+            const lowerCaseMatch = fullText.match(
+              /\(小写\)[:：]?\s*[¥￥]?\s*([0-9,]+\.\d{2})/
+            );
+            amount = lowerCaseMatch ? lowerCaseMatch[1] : "";
+            if (!amount) {
+              const moneyPattern = /[0-9,]+\.\d{2}/g;
+              let maxVal = 0;
+              let match;
+              while ((match = moneyPattern.exec(fullText)) !== null) {
+                let val = parseFloat(match[0].replace(/,/g, ""));
+                if (val > maxVal && val < 1000000000) {
+                  maxVal = val;
+                  amount = match[0];
+                }
+              }
+            }
+          }
+
+          // 交易方字段 (分栏策略)
+          let purchaserName = "";
+          let sellerName = "";
+
+          let maxX = 0;
+          items.forEach((item) => {
+            if (item.transform[4] > maxX) maxX = item.transform[4];
+          });
+          const midX = maxX / 2 || 300;
+
+          const leftItems = items.filter((item) => item.transform[4] < midX);
+          const rightItems = items.filter((item) => item.transform[4] >= midX);
+
+          const findValueInColumn = (columnItems, labelRegex) => {
+            for (let i = 0; i < columnItems.length; i++) {
+              const item = columnItems[i];
+              if (labelRegex.test(item.str)) {
+                let value = "";
+                const match = item.str.match(labelRegex);
+                const selfContent = item.str.replace(match[0], "").trim();
+                if (selfContent.length > 1) value = selfContent;
+
+                for (let j = i + 1; j < columnItems.length; j++) {
+                  const nextItem = columnItems[j];
+                  if (Math.abs(nextItem.transform[5] - item.transform[5]) > 4)
+                    break;
+                  value += nextItem.str;
+                }
+                if (value.trim()) return value.trim();
+              }
+            }
+            return null;
+          };
+
+          purchaserName =
+            findValueInColumn(leftItems, /名称[:：]/) ||
+            findValueInColumn(leftItems, /购\s*买\s*方/) ||
+            "";
+          sellerName =
+            findValueInColumn(rightItems, /名称[:：]/) ||
+            findValueInColumn(rightItems, /销\s*售\s*方/) ||
+            "";
+
+          // 3. 填充表单
+          document.getElementById("invoiceNum").value = invoiceNum;
+          document.getElementById("invoiceCode").value = invoiceCode;
+          document.getElementById("dateStr").value = dateStr;
+          document.getElementById("checkCode").value = checkCode;
+          document.getElementById("amount").value = amount;
+          document.getElementById("purchaserName").value = purchaserName;
+          document.getElementById("sellerName").value = sellerName;
+
+          // 打印识别结果到控制台
+          console.log("--- 发票识别结果 ---");
+          console.log("💰 价税合计:", amount);
+          console.log("📅 开票日期:", dateStr);
+          console.log("🔢 发票代码:", invoiceCode);
+          console.log("📄 发票号码:", invoiceNum);
+          console.log("✅ 校验码:", checkCode);
+          console.log("👤 购买方:", purchaserName);
+          console.log("🏪 销售方:", sellerName);
+          console.log("--------------------");
+
+          // 完成状态
+          statusMsg.style.display = "flex";
+          logsDiv.innerHTML = `解析完成! 找到 ${items.length} 个文本片段。`;
+        } catch (error) {
+          console.error(error);
+          logsDiv.innerHTML = `错误: ${error.message}`;
+          alert("解析失败，请查看控制台或日志");
+        }
+      };
+    </script>
+  </body>
+</html>

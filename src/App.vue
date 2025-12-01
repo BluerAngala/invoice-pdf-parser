@@ -117,7 +117,11 @@
       />
 
       <!-- 右侧：发票信息 -->
-      <InvoiceDetail :invoice="currentInvoice" @update="updateInvoiceField" />
+      <InvoiceDetail
+        :key="currentInvoice?.id + '-' + currentInvoice?.recognitionStatus"
+        :invoice="currentInvoice"
+        @update="updateInvoiceField"
+      />
     </div>
 
     <!-- 打印预览区域(隐藏) -->

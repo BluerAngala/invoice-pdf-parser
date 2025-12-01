@@ -1,7 +1,7 @@
-import { ref, computed, triggerRef } from 'vue'
+import { ref, computed } from 'vue'
 import type { Invoice, RecognitionProgress } from '../types/invoice'
 import { extractPdfText, isPdfFile } from '../utils/pdfExtract'
-import { recognizeInvoice } from '../utils/ocr'
+import { recognizeInvoice, type PdfParseData } from '../utils/ocr'
 
 export function useInvoiceManager() {
   const invoices = ref<Invoice[]>([])
@@ -119,8 +119,13 @@ export function useInvoiceManager() {
             )
             invoices.value.push(invoice)
             console.log(`  ✓ 添加发票: ${invoice.fileName}`)
-            // 异步识别，不阻塞后续文件处理
-            recognizeInvoiceAsync(invoice, page.text)
+            // 异步识别，传递完整的PDF数据
+            const pdfData: PdfParseData = {
+              fullText: page.fullText,
+              text: page.text,
+              items: page.items
+            }
+            recognizeInvoiceAsync(invoice, pdfData)
           }
         } else {
           const imageUrl = await new Promise<string>((resolve, reject) => {
@@ -210,10 +215,10 @@ export function useInvoiceManager() {
   }
 
   // 异步识别发票
-  async function recognizeInvoiceAsync(invoice: Invoice, pdfText?: string) {
+  async function recognizeInvoiceAsync(invoice: Invoice, pdfData?: PdfParseData) {
     try {
       console.log(`🔍 开始识别: ${invoice.fileName}`)
-      const result = await recognizeInvoice(invoice.imageUrl, invoice.fileName, pdfText)
+      const result = await recognizeInvoice(invoice.imageUrl, invoice.fileName, pdfData)
 
       // 逐个字段赋值确保响应式更新
       invoice.invoiceNumber = result.invoiceNumber
@@ -235,10 +240,11 @@ export function useInvoiceManager() {
         console.log(`✅ 识别成功: ${invoice.fileName}`)
       }
 
-      // 强制触发响应式更新
-      triggerRef(invoices)
+      // 强制触发响应式更新 - 通过重新赋值触发
+      invoices.value = [...invoices.value]
       if (currentInvoice.value?.id === invoice.id) {
-        triggerRef(currentInvoice)
+        // 重新从数组中获取更新后的对象
+        currentInvoice.value = invoices.value.find(inv => inv.id === invoice.id) || null
       }
 
       if (enableDuplicateRemoval.value) checkDuplicates()
