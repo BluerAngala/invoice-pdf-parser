@@ -28,13 +28,114 @@ export async function recognizeInvoice(
   // 如果有PDF文本，优先从文本提取
   if (pdfData && pdfData.fullText) {
     const result = parseInvoiceFromPdf(pdfData)
-    if (result.invoiceNumber || result.totalAmount > 0) {
-      // console.log(`📄 PDF文本识别成功: ${fileName}`)
+    // 只有发票号码识别成功才返回，否则调用 LLM 解析
+    if (result.invoiceNumber) {
+      console.log('📄 正则提取成功:', result.invoiceNumber)
+      return result
+    }
+    
+    // 发票号码未识别到，调用 LLM 解析文本
+    console.log('⚠️ 正则未识别到发票号码，尝试 LLM 解析...')
+    const llmResult = await recognizeInvoiceByLLM(pdfData.fullText)
+    if (llmResult.invoiceNumber) {
+      return llmResult
+    }
+    
+    // LLM 也失败了，返回正则提取的部分结果
+    if (result.totalAmount > 0) {
+      console.log('⚠️ LLM 解析失败，返回部分结果（金额: ¥' + result.totalAmount + '）')
       return result
     }
   }
 
-  // 调用 DeepSeek-OCR API
+  // 没有 PDF 文本，调用 OCR API（图片识别）
+  console.log('📷 无 PDF 文本，调用 OCR 图片识别...')
+  return recognizeInvoiceByOCR(imageUrl)
+}
+
+// 使用 LLM 解析发票文本（Qwen2.5-7B-Instruct）
+async function recognizeInvoiceByLLM(text: string): Promise<InvoiceData> {
+  const apiKey = import.meta.env.VITE_SILICONFLOW_API_KEY
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('⚠️ 未配置 API Key，跳过 LLM 解析')
+    return createEmptyInvoice()
+  }
+
+  try {
+    const response = await fetch(
+      import.meta.env.VITE_SILICONFLOW_API_URL || 'https://api.siliconflow.cn/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'Qwen/Qwen2.5-7B-Instruct',
+          messages: [
+            {
+              role: 'system',
+              content: '你是发票信息提取助手。从用户提供的发票文本中提取关键信息，只返回JSON格式，不要其他内容。'
+            },
+            {
+              role: 'user',
+              content: `从以下发票文本中提取信息，返回JSON格式：
+{
+  "invoiceNumber": "发票号码(8-20位数字)",
+  "invoiceCode": "发票代码(10-12位数字，全电发票可为空)",
+  "date": "开票日期(YYYY-MM-DD格式)",
+  "seller": "销售方名称",
+  "buyer": "购买方名称", 
+  "amount": 金额(数字),
+  "taxAmount": 税额(数字),
+  "totalAmount": 价税合计(数字)
+}
+
+发票文本：
+${text.substring(0, 3000)}`
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 500
+        })
+      }
+    )
+
+    if (!response.ok) {
+      console.error(`LLM API错误: ${response.status}`)
+      return createEmptyInvoice()
+    }
+
+    const data = await response.json()
+    const content = data.choices?.[0]?.message?.content || ''
+
+    // 解析JSON
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      const json = JSON.parse(jsonMatch[0])
+      console.log('🤖 LLM 解析成功:', json.invoiceNumber)
+      return {
+        invoiceNumber: String(json.invoiceNumber || ''),
+        invoiceCode: String(json.invoiceCode || ''),
+        amount: parseFloat(json.amount) || 0,
+        taxAmount: parseFloat(json.taxAmount) || 0,
+        totalAmount: parseFloat(json.totalAmount) || 0,
+        date: String(json.date || ''),
+        seller: String(json.seller || ''),
+        buyer: String(json.buyer || '')
+      }
+    }
+
+    console.error('❌ LLM 返回内容无法解析')
+    return createEmptyInvoice()
+  } catch (error) {
+    console.error('LLM解析失败:', error)
+    return createEmptyInvoice()
+  }
+}
+
+// 使用 OCR API 识别图片（DeepSeek-OCR）
+async function recognizeInvoiceByOCR(imageUrl: string): Promise<InvoiceData> {
   const apiKey = import.meta.env.VITE_SILICONFLOW_API_KEY
   if (!apiKey || apiKey === 'your_api_key_here') {
     console.warn('⚠️ 未配置 API Key')
@@ -75,10 +176,10 @@ export async function recognizeInvoice(
     const data = await response.json()
     const content = data.choices?.[0]?.message?.content || ''
 
-    // 尝试解析JSON
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
       const json = JSON.parse(jsonMatch[0])
+      console.log('📷 OCR 识别成功:', json.invoiceNumber)
       return {
         invoiceNumber: json.invoiceNumber || '',
         invoiceCode: json.invoiceCode || '',
@@ -91,6 +192,7 @@ export async function recognizeInvoice(
       }
     }
 
+    console.error('❌ OCR 返回内容无法解析')
     return createEmptyInvoice()
   } catch (error) {
     console.error('OCR识别失败:', error)

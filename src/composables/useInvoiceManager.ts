@@ -53,6 +53,7 @@ export function useInvoiceManager() {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
       fileName,
       sourceFile,
+      uploadTime: new Date().toISOString(),
       imageUrl,
       invoiceNumber: '',
       invoiceCode: '',
@@ -62,6 +63,8 @@ export function useInvoiceManager() {
       date: '',
       seller: '',
       buyer: '',
+      category: '',
+      status: 'valid',
       isDuplicate: false,
       recognitionStatus: 'processing'
     }
@@ -74,7 +77,7 @@ export function useInvoiceManager() {
   })
 
   // 应用识别结果到发票对象
-  function applyInvoiceData(invoice: Invoice, data: InvoiceData) {
+  function applyInvoiceData(invoice: Invoice, data: InvoiceData, method?: 'regex' | 'llm' | 'ocr') {
     invoice.invoiceNumber = data.invoiceNumber
     invoice.invoiceCode = data.invoiceCode
     invoice.amount = data.amount
@@ -83,9 +86,11 @@ export function useInvoiceManager() {
     invoice.date = data.date
     invoice.seller = data.seller
     invoice.buyer = data.buyer
+    invoice.recognitionMethod = method
 
     const hasContent = data.invoiceNumber || data.invoiceCode || data.totalAmount > 0
     invoice.recognitionStatus = hasContent ? 'success' : 'error'
+    invoice.status = hasContent ? 'valid' : 'invalid'
     // 不在这里检查重复，统一在文件处理完成后检查
   }
 
@@ -167,10 +172,16 @@ export function useInvoiceManager() {
                   page.imageUrl,
                   file.name // 原始文件名
                 )
-                // 直接填充识别结果
-                applyInvoiceData(invoice, result)
-                invoices.value.push(invoice)
-                // console.log(`  ✓ 添加发票: ${invoice.fileName}`)
+                
+                // 如果发票号码为空，需要异步识别
+                if (!result.invoiceNumber) {
+                  invoices.value.push(invoice)
+                  recognizeInvoiceAsync(invoice, pdfData)
+                } else {
+                  // 直接填充识别结果
+                  applyInvoiceData(invoice, result, 'regex')
+                  invoices.value.push(invoice)
+                }
               }
             } else {
               // 单张发票，异步识别
@@ -297,6 +308,9 @@ export function useInvoiceManager() {
       if (!hasContent) {
         console.warn(`⚠️ 未识别到有效内容: ${invoice.fileName}`)
         invoice.recognitionStatus = 'error'
+        invoice.status = 'invalid'
+      } else {
+        invoice.status = 'valid'
       }
 
       // 强制触发响应式更新 - 通过重新赋值触发
@@ -327,12 +341,18 @@ export function useInvoiceManager() {
   // 检查重复发票
   function checkDuplicates() {
     if (!enableDuplicateRemoval.value) {
-      invoices.value.forEach(inv => (inv.isDuplicate = false))
+      invoices.value.forEach(inv => {
+        inv.isDuplicate = false
+        if (inv.status === 'duplicate') inv.status = 'valid'
+      })
       return
     }
 
     // 先重置所有发票的重复状态
-    invoices.value.forEach(inv => (inv.isDuplicate = false))
+    invoices.value.forEach(inv => {
+      inv.isDuplicate = false
+      if (inv.status === 'duplicate') inv.status = 'valid'
+    })
 
     // 用于记录每个 key 第一次出现的发票索引
     const firstSeenIndex = new Map<string, number>()
@@ -354,6 +374,7 @@ export function useInvoiceManager() {
         if (existingIndex !== undefined) {
           // 当前发票是重复的，标记为重复
           invoice.isDuplicate = true
+          invoice.status = 'duplicate'
         } else {
           // 第一次出现，记录索引，不标记为重复
           firstSeenIndex.set(key, i)
