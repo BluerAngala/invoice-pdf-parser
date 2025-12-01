@@ -16,34 +16,25 @@ export async function extractPdfText(file: File): Promise<PdfPageData[]> {
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
   const pages: PdfPageData[] = []
 
-  // 处理每一页
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum)
     
-    // 1. 提取文本 - 保留换行结构
+    // 提取文本 - 按Y坐标分组保留行结构
     const textContent = await page.getTextContent()
-    const textItems = textContent.items as any[]
+    const lines = new Map<number, string>()
     
-    // 按Y坐标分组，保留行结构
-    const lines: { y: number; text: string }[] = []
-    textItems.forEach(item => {
+    const items = textContent.items as any[]
+    items.forEach((item: any) => {
       const y = Math.round(item.transform[5])
-      const existing = lines.find(line => Math.abs(line.y - y) < 5)
-      if (existing) {
-        existing.text += ' ' + item.str
-      } else {
-        lines.push({ y, text: item.str })
-      }
+      const existing = lines.get(y) || ''
+      lines.set(y, existing + ' ' + item.str)
     })
     
-    // 按Y坐标排序（从上到下）
-    lines.sort((a, b) => b.y - a.y)
-    const text = lines.map(line => line.text).join('\n')
+    // 按Y坐标排序并拼接文本
+    const sortedLines = Array.from(lines.entries()).sort((a, b) => b[0] - a[0])
+    const text = sortedLines.map(entry => entry[1]).join('\n')
     
-    console.log(`📄 PDF第${pageNum}页提取的文本:`)
-    console.log(text)
-    
-    // 2. 渲染为图片
+    // 渲染为图片
     const viewport = page.getViewport({ scale: 2.5 })
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d', { alpha: false })
@@ -52,22 +43,15 @@ export async function extractPdfText(file: File): Promise<PdfPageData[]> {
     
     canvas.width = viewport.width
     canvas.height = viewport.height
-
-    // 白色背景
     context.fillStyle = 'white'
     context.fillRect(0, 0, canvas.width, canvas.height)
-
-    await page.render({
-      canvasContext: context,
-      viewport: viewport
-    }).promise
-
-    const imageUrl = canvas.toDataURL('image/jpeg', 0.92)
+    
+    await page.render({ canvasContext: context, viewport }).promise
     
     pages.push({
       pageNumber: pageNum,
       text,
-      imageUrl
+      imageUrl: canvas.toDataURL('image/jpeg', 0.92)
     })
   }
 

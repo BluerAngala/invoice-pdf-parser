@@ -35,86 +35,65 @@ export function useInvoiceManager() {
     currentInvoice.value = invoices.value.find(inv => inv.id === id) || null
   }
 
+  // 创建发票对象
+  function createInvoice(fileName: string, imageUrl: string): Invoice {
+    return {
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
+      fileName,
+      imageUrl,
+      invoiceNumber: '',
+      invoiceCode: '',
+      amount: 0,
+      taxAmount: 0,
+      totalAmount: 0,
+      date: '',
+      seller: '',
+      buyer: '',
+      isDuplicate: false,
+      recognitionStatus: 'processing'
+    }
+  }
+
   // 处理文件上传
   async function handleFileUpload(files: FileList) {
     isProcessing.value = true
-    progress.value = {
-      current: 0,
-      total: files.length,
-      status: '处理文件中...'
-    }
+    progress.value = { current: 0, total: files.length, status: '处理文件中...' }
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       progress.value.current = i + 1
-      progress.value.status = `处理文件 ${i + 1}/${files.length}: ${file.name}`
+      progress.value.status = `处理 ${i + 1}/${files.length}: ${file.name}`
 
       try {
         if (isPdfFile(file)) {
-          // PDF文件 - 提取文本并渲染图片
           const pages = await extractPdfText(file)
-          for (const page of pages) {
-            const invoice: Invoice = {
-              id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
-              fileName: pages.length > 1 ? `${file.name} - 第${page.pageNumber}页` : file.name,
-              imageUrl: page.imageUrl,
-              invoiceNumber: '',
-              invoiceCode: '',
-              amount: 0,
-              taxAmount: 0,
-              totalAmount: 0,
-              date: '',
-              seller: '',
-              buyer: '',
-              isDuplicate: false,
-              recognitionStatus: 'processing'
-            }
+          pages.forEach(page => {
+            const invoice = createInvoice(
+              pages.length > 1 ? `${file.name} - 第${page.pageNumber}页` : file.name,
+              page.imageUrl
+            )
             invoices.value.push(invoice)
-            
-            // 异步识别（传入PDF文本）
             recognizeInvoiceAsync(invoice, page.text)
-          }
+          })
         } else {
-          // 图片文件
-          const reader = new FileReader()
-          await new Promise<void>((resolve) => {
-            reader.onload = (e) => {
-              const imageUrl = e.target?.result as string
-              const invoice: Invoice = {
-                id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
-                fileName: file.name,
-                imageUrl,
-                invoiceNumber: '',
-                invoiceCode: '',
-                amount: 0,
-                taxAmount: 0,
-                totalAmount: 0,
-                date: '',
-                seller: '',
-                buyer: '',
-                isDuplicate: false,
-                recognitionStatus: 'processing'
-              }
-              invoices.value.push(invoice)
-              
-              // 异步识别（图片文件无PDF文本）
-              recognizeInvoiceAsync(invoice)
-              resolve()
-            }
+          const imageUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = (e) => resolve(e.target?.result as string)
             reader.readAsDataURL(file)
           })
+          const invoice = createInvoice(file.name, imageUrl)
+          invoices.value.push(invoice)
+          recognizeInvoiceAsync(invoice)
         }
       } catch (error) {
-        console.error('处理文件失败:', file.name, error)
-        alert(`处理文件失败: ${file.name}`)
+        console.error('处理失败:', file.name, error)
       }
     }
 
     isProcessing.value = false
-    progress.value.status = '完成!'
-
-    // 自动选择第一张发票
-    if (invoices.value.length > 0 && !currentInvoice.value) {
+    progress.value.status = '完成'
+    
+    if (!currentInvoice.value && invoices.value.length > 0) {
       currentInvoice.value = invoices.value[0]
     }
   }
@@ -123,25 +102,11 @@ export function useInvoiceManager() {
   async function recognizeInvoiceAsync(invoice: Invoice, pdfText?: string) {
     try {
       const result = await recognizeInvoice(invoice.imageUrl, invoice.fileName, pdfText)
-      
-      // 逐个字段赋值以确保响应式更新
-      invoice.invoiceNumber = result.invoiceNumber
-      invoice.invoiceCode = result.invoiceCode
-      invoice.amount = result.amount
-      invoice.taxAmount = result.taxAmount
-      invoice.totalAmount = result.totalAmount
-      invoice.date = result.date
-      invoice.seller = result.seller
-      invoice.buyer = result.buyer
-      invoice.recognitionStatus = 'success'
-      
-      // 识别完成后检查重复
-      if (enableDuplicateRemoval.value) {
-        checkDuplicates()
-      }
+      Object.assign(invoice, result, { recognitionStatus: 'success' })
+      if (enableDuplicateRemoval.value) checkDuplicates()
     } catch (error) {
       invoice.recognitionStatus = 'error'
-      console.error('❌ 识别失败:', error)
+      console.error('识别失败:', error)
     }
   }
 

@@ -140,30 +140,7 @@
         </div>
       </div>
 
-      <div class="form-section">
-        <div class="switch-row">
-          <span>发票去重</span>
-          <label class="switch">
-            <input type="checkbox" :checked="enableDuplicateRemoval" @change="$emit('toggleDuplicate')" />
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
 
-      <div class="action-buttons">
-        <button class="btn btn-primary" @click="$emit('exportPDF')">
-          📥 导出PDF
-        </button>
-        <button class="btn btn-success" @click="$emit('exportExcel')">
-          📊 导出清单
-        </button>
-        <button class="btn btn-secondary" @click="$emit('print')">
-          🖨️ 打印
-        </button>
-        <button class="btn btn-purple" @click="$emit('clearDuplicates')">
-          🗑️ 智能去重
-        </button>
-      </div>
     </div>
   </div>
 </template>
@@ -176,16 +153,10 @@ defineProps<{
   invoice: Invoice | null
   validCount: number
   totalAmount: number
-  enableDuplicateRemoval: boolean
 }>()
 
 const emit = defineEmits<{
   update: [field: string, value: any]
-  toggleDuplicate: []
-  exportPDF: []
-  exportExcel: []
-  print: []
-  clearDuplicates: []
 }>()
 
 const isEditMode = ref(false)
@@ -412,109 +383,5 @@ function updateField(field: string, value: any) {
   border-color: #b7eb8f;
 }
 
-.switch-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-  color: #333;
-}
 
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  transition: 0.4s;
-  border-radius: 24px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: 0.4s;
-  border-radius: 50%;
-}
-
-input:checked + .slider {
-  background-color: #1890ff;
-}
-
-input:checked + .slider:before {
-  transform: translateX(20px);
-}
-
-.action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.btn {
-  width: 100%;
-  padding: 12px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-.btn-primary {
-  background: #1890ff;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #40a9ff;
-}
-
-.btn-success {
-  background: #52c41a;
-  color: white;
-}
-
-.btn-success:hover {
-  background: #73d13d;
-}
-
-.btn-secondary {
-  background: #595959;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background: #8c8c8c;
-}
-
-.btn-purple {
-  background: #722ed1;
-  color: white;
-}
-
-.btn-purple:hover {
-  background: #9254de;
-}
 </style>
