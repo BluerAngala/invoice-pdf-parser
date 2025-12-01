@@ -1,7 +1,7 @@
-import * as pdfjsLib from 'pdfjs-dist'
+import * as pdfjsLib from '../pdfjs/pdf.mjs'
 
-// 设置 worker 路径
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
+// 设置 worker 路径（使用本地文件）
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../pdfjs/pdf.worker.mjs', import.meta.url).href
 
 // PDF页面数据
 export interface PdfPageData {
@@ -24,8 +24,9 @@ export async function extractPdfText(file: File): Promise<PdfPageData[]> {
   const arrayBuffer = await file.arrayBuffer()
   const pdf = await pdfjsLib.getDocument({
     data: arrayBuffer,
-    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
-    cMapPacked: true
+    cMapUrl: '/cmaps/',
+    cMapPacked: true,
+    standardFontDataUrl: '/standard_fonts/'
   }).promise
   const pages: PdfPageData[] = []
 

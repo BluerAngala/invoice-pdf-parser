@@ -530,16 +530,45 @@ function parseInvoiceFromPdf(pdfData: PdfParseData): InvoiceData {
 
   // 如果分栏策略失败，使用正则兜底
   if (!buyer) {
-    const buyerMatch = fullText.match(
-      /购\s*买\s*方[\s\S]{0,50}?名\s*称[:：]?\s*([^\s\n统一社会]{2,50})/
-    )
-    buyer = buyerMatch ? buyerMatch[1].trim() : ''
+    const buyerPatterns = [
+      /购\s*买\s*方[\s\S]{0,50}?名\s*称[:：]?\s*([^\s\n统一社会]{2,50})/,
+      /购买方名称[:：]?\s*(.+?)(?:\s|$|统一社会)/,
+      /购\s*方[:：]?\s*(.+?)(?:\s|$|统一)/,
+    ]
+    for (const pattern of buyerPatterns) {
+      const match = fullText.match(pattern)
+      if (match && match[1].trim().length > 1) {
+        buyer = match[1].trim()
+        break
+      }
+    }
   }
+
   if (!seller) {
-    const sellerMatch = fullText.match(
-      /销\s*售\s*方[\s\S]{0,50}?名\s*称[:：]?\s*([^\s\n统一社会]{2,50})/
-    )
-    seller = sellerMatch ? sellerMatch[1].trim() : ''
+    const sellerPatterns = [
+      /销\s*售\s*方[\s\S]{0,50}?名\s*称[:：]?\s*([^\s\n统一社会]{2,50})/,
+      /销售方名称[:：]?\s*(.+?)(?:\s|$|统一社会)/,
+      /销\s*方[:：]?\s*(.+?)(?:\s|$|统一)/,
+      /销售方[:：]?\s*(.+?)(?:\s|$|统一)/,
+      // 全电发票格式：销售方信息在特定位置
+      /销售方\s*名称[:：]?\s*([^统一\s]{2,50})/,
+      // 查找"有限公司"结尾的公司名
+      /名称[:：]?\s*([^统一\s]*?有限公司[^统一\s]*)/,
+    ]
+    for (const pattern of sellerPatterns) {
+      const match = fullText.match(pattern)
+      if (match && match[1].trim().length > 1) {
+        seller = match[1].trim()
+        break
+      }
+    }
+  }
+
+  // 清理销售方名称中的多余字符
+  if (seller) {
+    seller = seller.replace(/[:：\s（(].*/g, '').trim()
+    // 移除末尾的 "(章)" 等
+    seller = seller.replace(/[（(]章[）)]?$/g, '').trim()
   }
 
   return {

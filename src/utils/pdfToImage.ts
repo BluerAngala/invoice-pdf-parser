@@ -1,7 +1,7 @@
-import * as pdfjsLib from 'pdfjs-dist'
+import * as pdfjsLib from '../pdfjs/pdf.mjs'
 
-// 设置 worker 路径
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
+// 设置 worker 路径（使用本地文件）
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../pdfjs/pdf.worker.mjs', import.meta.url).href
 
 // PDF页面数据
 export interface PdfPageData {
@@ -12,7 +12,12 @@ export interface PdfPageData {
 // 将PDF转换为图片和文本
 export async function convertPdfToImagesAndText(file: File): Promise<PdfPageData[]> {
   const arrayBuffer = await file.arrayBuffer()
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+  const pdf = await pdfjsLib.getDocument({
+    data: arrayBuffer,
+    cMapUrl: '/cmaps/',
+    cMapPacked: true,
+    standardFontDataUrl: '/standard_fonts/'
+  }).promise
   const pages: PdfPageData[] = []
 
   // 转换每一页
