@@ -86,11 +86,7 @@ export function useInvoiceManager() {
 
     const hasContent = data.invoiceNumber || data.invoiceCode || data.totalAmount > 0
     invoice.recognitionStatus = hasContent ? 'success' : 'error'
-
-    if (enableDuplicateRemoval.value) {
-      // 延迟检查重复，等所有发票添加完成
-      setTimeout(() => checkDuplicates(), 100)
-    }
+    // 不在这里检查重复，统一在文件处理完成后检查
   }
 
   // 处理文件上传
@@ -214,6 +210,11 @@ export function useInvoiceManager() {
     isProcessing.value = false
     progress.value.status = '完成'
 
+    // 文件处理完成后统一检查重复
+    if (enableDuplicateRemoval.value) {
+      checkDuplicates()
+    }
+
     if (!currentInvoice.value && invoices.value.length > 0) {
       currentInvoice.value = invoices.value[0]
     }
@@ -305,13 +306,15 @@ export function useInvoiceManager() {
         currentInvoice.value = invoices.value.find(inv => inv.id === invoice.id) || null
       }
 
+      // 检查重复并打印结果
       if (enableDuplicateRemoval.value) checkDuplicates()
 
-      // 打印识别结果（包含重复状态）
+      // 打印识别结果（包含重复状态，重新获取最新状态）
       if (hasContent) {
-        const dupTag = invoice.isDuplicate ? ' [重复]' : ''
+        const latestInvoice = invoices.value.find(inv => inv.id === invoice.id)
+        const statusTag = latestInvoice?.isDuplicate ? ' [重复]' : ' [原始]'
         console.log(
-          `✅ ${invoice.fileName} | 号码:${result.invoiceNumber || '-'} | 代码:${result.invoiceCode || '-'} | 金额:¥${result.totalAmount} | 日期:${result.date || '-'} | 销售方:${result.seller || '-'}${dupTag}`
+          `✅ ${invoice.fileName} | 号码:${result.invoiceNumber || '-'} | 代码:${result.invoiceCode || '-'} | 金额:¥${result.totalAmount} | 日期:${result.date || '-'} | 销售方:${result.seller || '-'}${statusTag}`
         )
       }
     } catch (error) {
@@ -336,6 +339,11 @@ export function useInvoiceManager() {
 
     for (let i = 0; i < invoices.value.length; i++) {
       const invoice = invoices.value[i]
+
+      // 只处理已识别成功的发票
+      if (invoice.recognitionStatus !== 'success') {
+        continue
+      }
 
       // 生成去重 key
       const key = getDedupeKey(invoice)

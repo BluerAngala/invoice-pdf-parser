@@ -26,7 +26,8 @@ export async function extractPdfText(file: File): Promise<PdfPageData[]> {
     data: arrayBuffer,
     cMapUrl: '/cmaps/',
     cMapPacked: true,
-    standardFontDataUrl: '/standard_fonts/'
+    standardFontDataUrl: '/standard_fonts/',
+    useSystemFonts: false // 禁用系统字体，避免字体警告
   }).promise
   const pages: PdfPageData[] = []
 

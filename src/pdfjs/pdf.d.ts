@@ -45,6 +45,7 @@ declare module '*.mjs' {
     cMapUrl?: string
     cMapPacked?: boolean
     standardFontDataUrl?: string
+    useSystemFonts?: boolean // 是否使用系统字体
   }
 
   export interface PDFDocumentLoadingTask {

@@ -34,7 +34,8 @@ export default [
         Event: 'readonly',
         FileReader: 'readonly',
         File: 'readonly',
-        fetch: 'readonly'
+        fetch: 'readonly',
+        URL: 'readonly'
       }
     },
     plugins: {
