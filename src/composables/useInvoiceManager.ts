@@ -278,7 +278,6 @@ export function useInvoiceManager() {
   // 异步识别发票
   async function recognizeInvoiceAsync(invoice: Invoice, pdfData?: PdfParseData) {
     try {
-      console.log(`🔍 开始识别: ${invoice.fileName}`)
       const result = await recognizeInvoice(invoice.imageUrl, invoice.fileName, pdfData)
 
       // 逐个字段赋值确保响应式更新
@@ -298,7 +297,9 @@ export function useInvoiceManager() {
         console.warn(`⚠️ 未识别到有效内容: ${invoice.fileName}`)
         invoice.recognitionStatus = 'error'
       } else {
-        console.log(`✅ 识别成功: ${invoice.fileName}`)
+        console.log(
+          `✅ ${invoice.fileName} | 号码:${result.invoiceNumber || '-'} | 代码:${result.invoiceCode || '-'} | 金额:¥${result.totalAmount} | 日期:${result.date || '-'} | 销售方:${result.seller || '-'}`
+        )
       }
 
       // 强制触发响应式更新 - 通过重新赋值触发
@@ -325,12 +326,26 @@ export function useInvoiceManager() {
 
     const seen = new Set<string>()
     invoices.value.forEach(invoice => {
-      const key = invoice.invoiceNumber || invoice.invoiceCode
-      if (key && seen.has(key)) {
+      // 优先使用发票号码或代码
+      const invoiceNum = invoice.invoiceNumber?.trim()
+      const invoiceCode = invoice.invoiceCode?.trim()
+      let key = invoiceNum || invoiceCode
+
+      // 如果没有发票号码/代码，但有金额，使用金额+日期+销售方组合
+      if (!key && invoice.totalAmount > 0) {
+        const amountKey = invoice.totalAmount.toFixed(2)
+        const dateKey = invoice.date?.trim() || ''
+        const sellerKey = invoice.seller?.trim() || ''
+        // 组合 key：金额_日期_销售方
+        key = `amt_${amountKey}_${dateKey}_${sellerKey}`
+      }
+
+      // key 必须有实际内容才参与去重判断
+      if (key && key.length > 0 && seen.has(key)) {
         invoice.isDuplicate = true
       } else {
         invoice.isDuplicate = false
-        if (key) seen.add(key)
+        if (key && key.length > 0) seen.add(key)
       }
     })
   }

@@ -388,8 +388,19 @@ function parseInvoiceFromPdf(pdfData: PdfParseData): InvoiceData {
   // 全电发票（20位号码）不需要代码
   let invoiceCode = ''
   if (!invoiceNumber || invoiceNumber.length !== 20) {
-    const codeMatch = fullText.match(/发票代码[:：]?\s*(\d{10,12})/)
-    invoiceCode = codeMatch ? codeMatch[1] : ''
+    const codePatterns = [
+      /发票代码[:：]?\s*(\d{10,12})/, // 标准格式
+      /代码[:：]?\s*(\d{10,12})/, // 简写
+      /发票代码\s*(\d{10,12})/, // 无冒号
+      /(\d{10,12})\s*发票代码/, // 代码在前
+    ]
+    for (const pattern of codePatterns) {
+      const match = fullText.match(pattern)
+      if (match) {
+        invoiceCode = match[1]
+        break
+      }
+    }
   }
 
   // === 开票日期 ===
