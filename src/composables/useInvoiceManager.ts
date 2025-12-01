@@ -174,7 +174,7 @@ export function useInvoiceManager() {
                 // 直接填充识别结果
                 applyInvoiceData(invoice, result)
                 invoices.value.push(invoice)
-                console.log(`  ✓ 添加发票: ${invoice.fileName}`)
+                // console.log(`  ✓ 添加发票: ${invoice.fileName}`)
               }
             } else {
               // 单张发票，异步识别
@@ -184,7 +184,7 @@ export function useInvoiceManager() {
                 file.name // 原始文件名
               )
               invoices.value.push(invoice)
-              console.log(`  ✓ 添加发票: ${invoice.fileName}`)
+              // console.log(`  ✓ 添加发票: ${invoice.fileName}`)
               recognizeInvoiceAsync(invoice, pdfData)
             }
           }
@@ -197,7 +197,7 @@ export function useInvoiceManager() {
           })
           const invoice = createInvoice(file.name, imageUrl, file.name)
           invoices.value.push(invoice)
-          console.log(`  ✓ 添加发票: ${invoice.fileName}`)
+          // console.log(`  ✓ 添加发票: ${invoice.fileName}`)
           // 异步识别，不阻塞后续文件处理
           recognizeInvoiceAsync(invoice)
         }
@@ -296,10 +296,6 @@ export function useInvoiceManager() {
       if (!hasContent) {
         console.warn(`⚠️ 未识别到有效内容: ${invoice.fileName}`)
         invoice.recognitionStatus = 'error'
-      } else {
-        console.log(
-          `✅ ${invoice.fileName} | 号码:${result.invoiceNumber || '-'} | 代码:${result.invoiceCode || '-'} | 金额:¥${result.totalAmount} | 日期:${result.date || '-'} | 销售方:${result.seller || '-'}`
-        )
       }
 
       // 强制触发响应式更新 - 通过重新赋值触发
@@ -310,6 +306,14 @@ export function useInvoiceManager() {
       }
 
       if (enableDuplicateRemoval.value) checkDuplicates()
+
+      // 打印识别结果（包含重复状态）
+      if (hasContent) {
+        const dupTag = invoice.isDuplicate ? ' [重复]' : ''
+        console.log(
+          `✅ ${invoice.fileName} | 号码:${result.invoiceNumber || '-'} | 代码:${result.invoiceCode || '-'} | 金额:¥${result.totalAmount} | 日期:${result.date || '-'} | 销售方:${result.seller || '-'}${dupTag}`
+        )
+      }
     } catch (error) {
       invoice.recognitionStatus = 'error'
       const errorMsg = error instanceof Error ? error.message : '未知错误'
@@ -324,54 +328,59 @@ export function useInvoiceManager() {
       return
     }
 
-    // 用于记录每个 key 第一次出现的发票 ID
-    const firstSeen = new Map<string, string>()
-    // 用于记录重复的发票 ID
-    const duplicateIds = new Set<string>()
+    // 先重置所有发票的重复状态
+    invoices.value.forEach(inv => (inv.isDuplicate = false))
 
-    invoices.value.forEach(invoice => {
-      // 优先使用发票号码
-      const invoiceNum = invoice.invoiceNumber?.trim()
-      // 其次使用发票代码
-      const invoiceCode = invoice.invoiceCode?.trim()
+    // 用于记录每个 key 第一次出现的发票索引
+    const firstSeenIndex = new Map<string, number>()
 
-      // 只有发票号码才能作为唯一标识进行去重
-      // 发票代码可能在多张发票中相同（同一本发票本）
-      let key = invoiceNum
+    for (let i = 0; i < invoices.value.length; i++) {
+      const invoice = invoices.value[i]
 
-      // 如果没有发票号码，尝试使用发票代码+金额+日期组合
-      if (!key && invoiceCode && invoice.totalAmount > 0) {
-        const amountKey = invoice.totalAmount.toFixed(2)
-        const dateKey = invoice.date?.trim() || ''
-        // 组合 key：代码_金额_日期
-        key = `code_${invoiceCode}_${amountKey}_${dateKey}`
-      }
-
-      // 如果仍然没有 key，但有完整的金额+日期+销售方信息，使用组合 key
-      if (!key && invoice.totalAmount > 0 && invoice.date?.trim() && invoice.seller?.trim()) {
-        const amountKey = invoice.totalAmount.toFixed(2)
-        const dateKey = invoice.date.trim()
-        const sellerKey = invoice.seller.trim()
-        // 组合 key：金额_日期_销售方（必须三者都有才参与去重）
-        key = `amt_${amountKey}_${dateKey}_${sellerKey}`
-      }
+      // 生成去重 key
+      const key = getDedupeKey(invoice)
 
       // key 必须有实际内容才参与去重判断
-      if (key && key.length > 0) {
-        if (firstSeen.has(key)) {
-          // 这是重复的发票
-          duplicateIds.add(invoice.id)
+      if (key) {
+        const existingIndex = firstSeenIndex.get(key)
+        if (existingIndex !== undefined) {
+          // 当前发票是重复的，标记为重复
+          invoice.isDuplicate = true
         } else {
-          // 第一次出现，记录下来
-          firstSeen.set(key, invoice.id)
+          // 第一次出现，记录索引，不标记为重复
+          firstSeenIndex.set(key, i)
         }
       }
-    })
+    }
+  }
 
-    // 更新所有发票的重复状态
-    invoices.value.forEach(invoice => {
-      invoice.isDuplicate = duplicateIds.has(invoice.id)
-    })
+  // 生成发票去重 key
+  function getDedupeKey(invoice: Invoice): string | null {
+    // 优先使用发票号码
+    const invoiceNum = invoice.invoiceNumber?.trim()
+    if (invoiceNum) {
+      return invoiceNum
+    }
+
+    // 其次使用发票代码
+    const invoiceCode = invoice.invoiceCode?.trim()
+
+    // 如果没有发票号码，尝试使用发票代码+金额+日期组合
+    if (invoiceCode && invoice.totalAmount > 0) {
+      const amountKey = invoice.totalAmount.toFixed(2)
+      const dateKey = invoice.date?.trim() || ''
+      return `code_${invoiceCode}_${amountKey}_${dateKey}`
+    }
+
+    // 如果仍然没有 key，但有完整的金额+日期+销售方信息，使用组合 key
+    if (invoice.totalAmount > 0 && invoice.date?.trim() && invoice.seller?.trim()) {
+      const amountKey = invoice.totalAmount.toFixed(2)
+      const dateKey = invoice.date.trim()
+      const sellerKey = invoice.seller.trim()
+      return `amt_${amountKey}_${dateKey}_${sellerKey}`
+    }
+
+    return null
   }
 
   // 删除发票

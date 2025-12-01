@@ -29,7 +29,7 @@ export async function recognizeInvoice(
   if (pdfData && pdfData.fullText) {
     const result = parseInvoiceFromPdf(pdfData)
     if (result.invoiceNumber || result.totalAmount > 0) {
-      console.log(`📄 PDF文本识别成功: ${fileName}`)
+      // console.log(`📄 PDF文本识别成功: ${fileName}`)
       return result
     }
   }
