@@ -8,16 +8,12 @@
       <div class="form-hint">
         <span class="hint-icon">ℹ️</span>
         {{ invoice ? '当前发票详情' : '选择一张发票查看详情' }}
+        <button v-if="invoice" class="edit-toggle-btn" @click="toggleEdit">
+          {{ isEditMode ? '👁️ 查看' : '✏️ 编辑' }}
+        </button>
       </div>
 
       <div v-if="invoice" class="form-section">
-        <h4>
-          当前发票
-          <button class="edit-toggle-btn" @click="toggleEdit">
-            {{ isEditMode ? '👁️ 查看' : '✏️ 编辑' }}
-          </button>
-        </h4>
-
         <div v-if="!isEditMode" class="current-invoice-info">
           <div class="info-item">
             <span class="info-label">文件名</span>
@@ -44,6 +40,34 @@
             <span class="info-value amount">¥{{ invoice.totalAmount.toFixed(2) }}</span>
           </div>
           <div v-if="invoice.isDuplicate" class="duplicate-warning">⚠️ 此发票为重复发票</div>
+          <div v-if="invoice.recognitionStatus === 'error'" class="error-detail">
+            <div class="error-header">
+              <span class="error-icon">⚠️</span>
+              <span class="error-title">识别失败</span>
+            </div>
+            <div class="error-reason">
+              <div class="error-label">可能原因：</div>
+              <ul class="error-list">
+                <li>图片质量不清晰或模糊</li>
+                <li>发票格式不标准或损坏</li>
+                <li>OCR 服务暂时不可用</li>
+                <li>API 配额已用完或网络异常</li>
+              </ul>
+            </div>
+            <div class="error-solution">
+              <div class="error-label">解决方案：</div>
+              <ul class="solution-list">
+                <li>✓ 重新上传更清晰的发票图片</li>
+                <li>✓ 检查网络连接和 API 配置</li>
+                <li>✓ 手动编辑发票信息（点击编辑按钮）</li>
+                <li>✓ 稍后重试或联系技术支持</li>
+              </ul>
+            </div>
+            <div v-if="invoice.errorMessage" class="error-message">
+              <div class="error-label">错误详情：</div>
+              <div class="error-text">{{ invoice.errorMessage }}</div>
+            </div>
+          </div>
         </div>
 
         <div v-else class="edit-form">
@@ -141,7 +165,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  update: [field: string, value: any]
+  update: [field: keyof Invoice, value: string | number | boolean]
 }>()
 
 const isEditMode = ref(false)
@@ -150,7 +174,7 @@ function toggleEdit() {
   isEditMode.value = !isEditMode.value
 }
 
-function updateField(field: string, value: any) {
+function updateField(field: keyof Invoice, value: string | number | boolean) {
   emit('update', field, value)
 }
 </script>
@@ -294,6 +318,80 @@ function updateField(field: string, value: any) {
   color: #ff4d4f;
   font-size: 12px;
   text-align: center;
+}
+
+.error-detail {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fff1f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.error-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ffccc7;
+}
+
+.error-icon {
+  font-size: 16px;
+}
+
+.error-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ff4d4f;
+}
+
+.error-reason,
+.error-solution,
+.error-message {
+  margin-bottom: 10px;
+}
+
+.error-reason:last-child,
+.error-solution:last-child,
+.error-message:last-child {
+  margin-bottom: 0;
+}
+
+.error-label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.error-list,
+.solution-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.error-list li,
+.solution-list li {
+  margin-bottom: 4px;
+}
+
+.solution-list li {
+  color: #52c41a;
+}
+
+.error-text {
+  padding: 8px;
+  background: white;
+  border-radius: 4px;
+  color: #ff4d4f;
+  font-family: monospace;
+  font-size: 11px;
+  word-break: break-all;
+  line-height: 1.5;
 }
 
 .edit-form {

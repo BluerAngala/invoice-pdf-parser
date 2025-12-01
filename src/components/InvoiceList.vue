@@ -52,17 +52,22 @@
         </div>
       </div>
       <div class="stat-row">
-        <div v-if="errorCount > 0" class="stat-item">
-          <span class="stat-label">⚠️ 问题:</span>
-          <span class="stat-value error">{{ errorCount }}</span>
-        </div>
-        <div v-if="duplicateCount > 0" class="stat-item">
-          <span class="stat-label">🔄 重复:</span>
-          <span class="stat-value duplicate">{{ duplicateCount }}</span>
-        </div>
-        <div v-if="processingCount > 0" class="stat-item">
-          <span class="stat-label">⏳ 识别中:</span>
-          <span class="stat-value processing">{{ processingCount }}</span>
+        <div
+          v-if="errorCount > 0 || duplicateCount > 0 || processingCount > 0"
+          class="stat-item-group"
+        >
+          <div v-if="errorCount > 0" class="stat-item">
+            <span class="stat-label">⚠️ 失败:</span>
+            <span class="stat-value error">{{ errorCount }}</span>
+          </div>
+          <div v-if="duplicateCount > 0" class="stat-item">
+            <span class="stat-label">🔄 重复:</span>
+            <span class="stat-value duplicate">{{ duplicateCount }}</span>
+          </div>
+          <div v-if="processingCount > 0" class="stat-item">
+            <span class="stat-label">⏳ 未识别:</span>
+            <span class="stat-value processing">{{ processingCount }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -80,11 +85,11 @@
       >
         <div class="invoice-thumb">
           <img :src="invoice.imageUrl" :alt="invoice.fileName" />
-          <div v-if="invoice.isDuplicate" class="duplicate-tag">重复</div>
-          <div v-if="invoice.recognitionStatus === 'processing'" class="status-tag processing">
-            识别中
+          <div v-if="invoice.isDuplicate" class="status-tag duplicate">重复</div>
+          <div v-else-if="invoice.recognitionStatus === 'error'" class="status-tag error">失败</div>
+          <div v-else-if="invoice.recognitionStatus === 'processing'" class="status-tag processing">
+            未识别
           </div>
-          <div v-if="invoice.recognitionStatus === 'error'" class="status-tag error">失败</div>
         </div>
         <div class="invoice-list-info">
           <div class="invoice-name">
@@ -284,6 +289,12 @@ function handleFileChange(event: Event) {
   margin-bottom: 0;
 }
 
+.stat-item-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .stat-item {
   display: flex;
   align-items: center;
@@ -364,25 +375,19 @@ function handleFileChange(event: Event) {
   object-fit: cover;
 }
 
-.duplicate-tag {
+.status-tag {
   position: absolute;
   top: 0;
   right: 0;
-  background: #ff4d4f;
   color: white;
   font-size: 10px;
   padding: 2px 4px;
   border-radius: 0 0 0 4px;
+  font-weight: 500;
 }
 
-.status-tag {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  color: white;
-  font-size: 10px;
-  padding: 2px 4px;
-  border-radius: 0 4px 0 0;
+.status-tag.duplicate {
+  background: #fa8c16;
 }
 
 .status-tag.processing {
