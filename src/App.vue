@@ -96,8 +96,6 @@
       <InvoiceList
         :invoices="invoices"
         :current-id="currentInvoice?.id || null"
-        :valid-count="validInvoiceCount"
-        :total-amount="totalAmount"
         :is-processing="isProcessing"
         :progress-percent="progressPercent"
         :view-mode="listViewMode"
@@ -111,6 +109,8 @@
       <InvoicePreview
         :invoice="currentInvoice"
         :zoom="zoom"
+        :valid-count="validInvoiceCount"
+        :total-amount="totalAmount"
         @zoom-in="zoomIn"
         @zoom-out="zoomOut"
         @reset-zoom="resetZoom"
@@ -119,8 +119,6 @@
       <!-- 右侧：发票信息 -->
       <InvoiceDetail
         :invoice="currentInvoice"
-        :valid-count="validInvoiceCount"
-        :total-amount="totalAmount"
         @update="updateInvoiceField"
       />
     </div>

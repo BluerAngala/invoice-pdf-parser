@@ -25,17 +25,6 @@
       </button>
     </div>
 
-    <div class="stats-mini">
-      <div class="stat-mini">
-        <div class="stat-mini-label">发票数量</div>
-        <div class="stat-mini-value">{{ validCount }}</div>
-      </div>
-      <div class="stat-mini">
-        <div class="stat-mini-label">总金额</div>
-        <div class="stat-mini-value green">¥{{ totalAmount.toFixed(2) }}</div>
-      </div>
-    </div>
-
     <div v-if="isProcessing" class="progress-bar">
       <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
     </div>
@@ -77,8 +66,6 @@ import type { Invoice } from '../types/invoice'
 defineProps<{
   invoices: Invoice[]
   currentId: string | null
-  validCount: number
-  totalAmount: number
   isProcessing: boolean
   progressPercent: number
   viewMode: 'grid' | 'list'
@@ -184,37 +171,6 @@ function handleFileChange(event: Event) {
   font-size: 12px;
   color: #999;
   margin-top: 5px;
-}
-
-.stats-mini {
-  display: flex;
-  padding: 15px;
-  gap: 10px;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.stat-mini {
-  flex: 1;
-  background: #f5f5f5;
-  padding: 10px;
-  border-radius: 6px;
-  text-align: center;
-}
-
-.stat-mini-label {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 5px;
-}
-
-.stat-mini-value {
-  font-size: 18px;
-  font-weight: bold;
-  color: #1890ff;
-}
-
-.stat-mini-value.green {
-  color: #52c41a;
 }
 
 .progress-bar {

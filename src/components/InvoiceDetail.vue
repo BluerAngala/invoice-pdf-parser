@@ -2,25 +2,12 @@
   <div class="right-panel">
     <div class="panel-header">
       <h3>发票信息</h3>
-      <button class="icon-btn" @click="toggleEdit">✏️</button>
     </div>
 
     <div class="invoice-form">
       <div class="form-hint">
         <span class="hint-icon">ℹ️</span>
         {{ invoice ? '当前发票详情' : '选择一张发票查看详情' }}
-      </div>
-
-      <div class="form-section">
-        <h4>发票统计</h4>
-        <div class="stat-row">
-          <span class="stat-label">发票数量</span>
-          <span class="stat-value">{{ validCount }}</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">总金额（合计）</span>
-          <span class="stat-value highlight">¥{{ totalAmount.toFixed(2) }}</span>
-        </div>
       </div>
 
       <div v-if="invoice" class="form-section">
@@ -151,8 +138,6 @@ import type { Invoice } from '../types/invoice'
 
 defineProps<{
   invoice: Invoice | null
-  validCount: number
-  totalAmount: number
 }>()
 
 const emit = defineEmits<{
@@ -261,27 +246,6 @@ function updateField(field: string, value: any) {
 .edit-toggle-btn:hover {
   border-color: #1890ff;
   color: #1890ff;
-}
-
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  font-size: 13px;
-}
-
-.stat-label {
-  color: #666;
-}
-
-.stat-value {
-  font-weight: 600;
-  color: #333;
-}
-
-.stat-value.highlight {
-  color: #52c41a;
-  font-size: 16px;
 }
 
 .current-invoice-info {

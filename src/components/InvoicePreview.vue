@@ -2,6 +2,17 @@
   <div class="center-panel">
     <div class="panel-header">
       <h3>发票预览</h3>
+      <div class="stats-center">
+        <div class="stat-item">
+          <span class="stat-label">发票数量</span>
+          <span class="stat-value">{{ validCount }}</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-label">总金额</span>
+          <span class="stat-value highlight">¥{{ totalAmount.toFixed(2) }}</span>
+        </div>
+      </div>
       <div class="toolbar">
         <button class="icon-btn" @click="$emit('zoomOut')">🔍-</button>
         <button class="icon-btn" @click="$emit('zoomIn')">🔍+</button>
@@ -27,6 +38,8 @@ import type { Invoice } from '../types/invoice'
 defineProps<{
   invoice: Invoice | null
   zoom: number
+  validCount: number
+  totalAmount: number
 }>()
 
 defineEmits<{
@@ -59,11 +72,50 @@ defineEmits<{
   font-size: 14px;
   font-weight: 600;
   color: #333;
+  min-width: 80px;
+}
+
+.stats-center {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+  justify-content: center;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #666;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1890ff;
+}
+
+.stat-value.highlight {
+  color: #52c41a;
+  font-size: 18px;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 20px;
+  background: #e8e8e8;
 }
 
 .toolbar {
   display: flex;
   gap: 5px;
+  min-width: 120px;
+  justify-content: flex-end;
 }
 
 .icon-btn {
