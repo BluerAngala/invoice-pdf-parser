@@ -43,7 +43,11 @@
     <div v-if="invoices.length > 0" class="stats-panel">
       <div class="stat-row">
         <div class="stat-item">
-          <span class="stat-label">📥 导入:</span>
+          <span class="stat-label">📁 文件:</span>
+          <span class="stat-value">{{ fileCount }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">📄 发票:</span>
           <span class="stat-value">{{ invoices.length }}</span>
         </div>
         <div class="stat-item">
@@ -73,34 +77,67 @@
     </div>
 
     <div class="invoice-list">
-      <div
-        v-for="invoice in invoices"
-        :key="invoice.id"
-        class="invoice-list-item"
-        :class="{
-          active: currentId === invoice.id,
-          duplicate: invoice.isDuplicate
-        }"
-        @click="$emit('select', invoice.id)"
-      >
-        <div class="invoice-thumb">
-          <img :src="invoice.imageUrl" :alt="invoice.fileName" />
-          <div v-if="invoice.isDuplicate" class="status-tag duplicate">重复</div>
-          <div v-else-if="invoice.recognitionStatus === 'error'" class="status-tag error">失败</div>
-          <div v-else-if="invoice.recognitionStatus === 'processing'" class="status-tag processing">
-            未识别
+      <!-- 按文件分组显示 -->
+      <template v-for="group in invoiceGroups" :key="group.sourceFile">
+        <!-- 多张发票的文件：显示分组头 -->
+        <div v-if="group.invoices.length > 1" class="file-group">
+          <div class="file-group-header" @click="toggleGroup(group.sourceFile)">
+            <span class="expand-icon">{{ expandedGroups.has(group.sourceFile) ? '▼' : '▶' }}</span>
+            <span class="file-name">{{ group.sourceFile }}</span>
+            <span class="invoice-count">{{ group.invoices.length }}张</span>
+          </div>
+          <div v-if="expandedGroups.has(group.sourceFile)" class="file-group-content">
+            <div
+              v-for="invoice in group.invoices"
+              :key="invoice.id"
+              class="invoice-list-item nested"
+              :class="{
+                active: currentId === invoice.id,
+                duplicate: invoice.isDuplicate
+              }"
+              @click="$emit('select', invoice.id)"
+            >
+              <div class="invoice-thumb">
+                <img :src="invoice.imageUrl" :alt="invoice.fileName" />
+                <div v-if="invoice.isDuplicate" class="status-tag duplicate">重复</div>
+                <div v-else-if="invoice.recognitionStatus === 'error'" class="status-tag error">失败</div>
+                <div v-else-if="invoice.recognitionStatus === 'processing'" class="status-tag processing">未识别</div>
+              </div>
+              <div class="invoice-list-info">
+                <div class="invoice-name">{{ getShortName(invoice.fileName, group.sourceFile) }}</div>
+                <div class="invoice-amount" :class="{ 'amount-zero': invoice.totalAmount === 0 }">
+                  ¥{{ invoice.totalAmount.toFixed(2) }}
+                </div>
+              </div>
+              <button class="delete-icon" @click.stop="$emit('remove', invoice.id)">🗑️</button>
+            </div>
           </div>
         </div>
-        <div class="invoice-list-info">
-          <div class="invoice-name">
-            {{ invoice.fileName }}
+        <!-- 单张发票的文件：直接显示 -->
+        <div
+          v-else
+          class="invoice-list-item"
+          :class="{
+            active: currentId === group.invoices[0].id,
+            duplicate: group.invoices[0].isDuplicate
+          }"
+          @click="$emit('select', group.invoices[0].id)"
+        >
+          <div class="invoice-thumb">
+            <img :src="group.invoices[0].imageUrl" :alt="group.invoices[0].fileName" />
+            <div v-if="group.invoices[0].isDuplicate" class="status-tag duplicate">重复</div>
+            <div v-else-if="group.invoices[0].recognitionStatus === 'error'" class="status-tag error">失败</div>
+            <div v-else-if="group.invoices[0].recognitionStatus === 'processing'" class="status-tag processing">未识别</div>
           </div>
-          <div class="invoice-amount" :class="{ 'amount-zero': invoice.totalAmount === 0 }">
-            ¥{{ invoice.totalAmount.toFixed(2) }}
+          <div class="invoice-list-info">
+            <div class="invoice-name">{{ group.invoices[0].fileName }}</div>
+            <div class="invoice-amount" :class="{ 'amount-zero': group.invoices[0].totalAmount === 0 }">
+              ¥{{ group.invoices[0].totalAmount.toFixed(2) }}
+            </div>
           </div>
+          <button class="delete-icon" @click.stop="$emit('remove', group.invoices[0].id)">🗑️</button>
         </div>
-        <button class="delete-icon" @click.stop="$emit('remove', invoice.id)">🗑️</button>
-      </div>
+      </template>
 
       <div v-if="invoices.length === 0" class="empty-state">
         <div class="empty-icon">📂</div>
@@ -120,9 +157,29 @@ const props = defineProps<{
   isProcessing: boolean
   progressPercent: number
   viewMode: 'grid' | 'list'
+  fileCount: number
 }>()
 
-// 统计识别状态（包含重复发票）
+// 展开状态
+const expandedGroups = ref<Set<string>>(new Set())
+
+// 按文件分组
+const invoiceGroups = computed(() => {
+  const groups = new Map<string, Invoice[]>()
+  for (const inv of props.invoices) {
+    const key = inv.sourceFile || inv.fileName
+    if (!groups.has(key)) {
+      groups.set(key, [])
+    }
+    groups.get(key)!.push(inv)
+  }
+  return Array.from(groups.entries()).map(([sourceFile, invoices]) => ({
+    sourceFile,
+    invoices
+  }))
+})
+
+// 统计识别状态
 const successCount = computed(
   () => props.invoices.filter(inv => inv.recognitionStatus === 'success').length
 )
@@ -158,6 +215,22 @@ function handleFileChange(event: Event) {
     emit('upload', target.files)
     target.value = ''
   }
+}
+
+function toggleGroup(sourceFile: string) {
+  if (expandedGroups.value.has(sourceFile)) {
+    expandedGroups.value.delete(sourceFile)
+  } else {
+    expandedGroups.value.add(sourceFile)
+  }
+}
+
+// 获取简短名称（去掉文件名前缀）
+function getShortName(fileName: string, sourceFile: string): string {
+  if (fileName.startsWith(sourceFile)) {
+    return fileName.slice(sourceFile.length).replace(/^\s*-\s*/, '') || fileName
+  }
+  return fileName
 }
 </script>
 
@@ -281,8 +354,9 @@ function handleFileChange(event: Event) {
 
 .stat-row {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 
 .stat-row:last-child {
@@ -334,6 +408,55 @@ function handleFileChange(event: Event) {
   padding: 10px;
 }
 
+/* 文件分组样式 */
+.file-group {
+  margin-bottom: 8px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.file-group-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f5f5f5;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.file-group-header:hover {
+  background: #e8e8e8;
+}
+
+.expand-icon {
+  font-size: 10px;
+  margin-right: 8px;
+  color: #666;
+}
+
+.file-name {
+  flex: 1;
+  font-size: 12px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invoice-count {
+  font-size: 11px;
+  color: #1890ff;
+  background: #e6f7ff;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.file-group-content {
+  border-top: 1px solid #e8e8e8;
+}
+
 .invoice-list-item {
   display: flex;
   align-items: center;
@@ -345,6 +468,17 @@ function handleFileChange(event: Event) {
   border: 1px solid transparent;
 }
 
+.invoice-list-item.nested {
+  margin-bottom: 0;
+  border-radius: 0;
+  border-bottom: 1px solid #f0f0f0;
+  padding-left: 20px;
+}
+
+.invoice-list-item.nested:last-child {
+  border-bottom: none;
+}
+
 .invoice-list-item:hover {
   background: #f5f5f5;
 }
@@ -352,6 +486,11 @@ function handleFileChange(event: Event) {
 .invoice-list-item.active {
   background: #e6f7ff;
   border-color: #1890ff;
+}
+
+.invoice-list-item.nested.active {
+  border-color: transparent;
+  border-left: 3px solid #1890ff;
 }
 
 .invoice-list-item.duplicate {

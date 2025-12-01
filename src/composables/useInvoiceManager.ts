@@ -48,10 +48,11 @@ export function useInvoiceManager() {
   }
 
   // 创建发票对象
-  function createInvoice(fileName: string, imageUrl: string): Invoice {
+  function createInvoice(fileName: string, imageUrl: string, sourceFile: string): Invoice {
     return {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
       fileName,
+      sourceFile,
       imageUrl,
       invoiceNumber: '',
       invoiceCode: '',
@@ -65,6 +66,12 @@ export function useInvoiceManager() {
       recognitionStatus: 'processing'
     }
   }
+
+  // 文件数量（去重后的 sourceFile）
+  const fileCount = computed(() => {
+    const files = new Set(invoices.value.map(inv => inv.sourceFile))
+    return files.size
+  })
 
   // 应用识别结果到发票对象
   function applyInvoiceData(invoice: Invoice, data: InvoiceData) {
@@ -161,7 +168,8 @@ export function useInvoiceManager() {
                 const result = multiResults[idx]
                 const invoice = createInvoice(
                   `${file.name} - 第${page.pageNumber}页 - 发票${idx + 1}`,
-                  page.imageUrl
+                  page.imageUrl,
+                  file.name // 原始文件名
                 )
                 // 直接填充识别结果
                 applyInvoiceData(invoice, result)
@@ -172,7 +180,8 @@ export function useInvoiceManager() {
               // 单张发票，异步识别
               const invoice = createInvoice(
                 pages.length > 1 ? `${file.name} - 第${page.pageNumber}页` : file.name,
-                page.imageUrl
+                page.imageUrl,
+                file.name // 原始文件名
               )
               invoices.value.push(invoice)
               console.log(`  ✓ 添加发票: ${invoice.fileName}`)
@@ -186,7 +195,7 @@ export function useInvoiceManager() {
             reader.onerror = () => reject(new Error('文件读取失败'))
             reader.readAsDataURL(file)
           })
-          const invoice = createInvoice(file.name, imageUrl)
+          const invoice = createInvoice(file.name, imageUrl, file.name)
           invoices.value.push(invoice)
           console.log(`  ✓ 添加发票: ${invoice.fileName}`)
           // 异步识别，不阻塞后续文件处理
@@ -379,6 +388,7 @@ export function useInvoiceManager() {
     validInvoiceCount,
     totalAmount,
     uniqueTotalAmount,
+    fileCount,
     selectInvoice,
     handleFileUpload,
     removeInvoice,

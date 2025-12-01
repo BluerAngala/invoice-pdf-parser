@@ -99,6 +99,7 @@
         :is-processing="isProcessing"
         :progress-percent="progressPercent"
         :view-mode="listViewMode"
+        :file-count="fileCount"
         @select="selectInvoice"
         @remove="removeInvoice"
         @upload="handleFileUpload"
@@ -145,6 +146,7 @@ const {
   enableDuplicateRemoval,
   progressPercent,
   totalAmount,
+  fileCount,
   selectInvoice,
   handleFileUpload,
   removeInvoice,

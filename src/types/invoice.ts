@@ -2,6 +2,7 @@
 export interface Invoice {
   id: string
   fileName: string
+  sourceFile: string // 原始文件名（用于分组）
   imageUrl: string
   invoiceNumber: string // 发票号码
   invoiceCode: string // 发票代码
@@ -14,6 +15,13 @@ export interface Invoice {
   isDuplicate: boolean // 是否重复
   recognitionStatus: 'pending' | 'processing' | 'success' | 'error'
   errorMessage?: string
+}
+
+// 按文件分组的发票
+export interface InvoiceGroup {
+  sourceFile: string
+  invoices: Invoice[]
+  expanded: boolean
 }
 
 export interface RecognitionProgress {
