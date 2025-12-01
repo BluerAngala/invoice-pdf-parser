@@ -4,12 +4,16 @@
       <h3>发票预览</h3>
       <div class="stats-center">
         <div class="stat-item">
-          <span class="stat-label">发票数量</span>
+          <span class="stat-label">有效发票</span>
           <span class="stat-value">{{ totalCount }}</span>
+        </div>
+        <div v-if="duplicateCount > 0" class="stat-item">
+          <span class="stat-label">重复</span>
+          <span class="stat-value duplicate">{{ duplicateCount }}</span>
         </div>
         <div class="stat-divider" />
         <div class="stat-item">
-          <span class="stat-label">总金额</span>
+          <span class="stat-label">去重金额</span>
           <span class="stat-value highlight">¥{{ totalAmount.toFixed(2) }}</span>
         </div>
       </div>
@@ -40,6 +44,7 @@ defineProps<{
   zoom: number
   totalCount: number
   totalAmount: number
+  duplicateCount: number
 }>()
 
 defineEmits<{
@@ -103,6 +108,10 @@ defineEmits<{
 .stat-value.highlight {
   color: #52c41a;
   font-size: 18px;
+}
+
+.stat-value.duplicate {
+  color: #faad14;
 }
 
 .stat-divider {
