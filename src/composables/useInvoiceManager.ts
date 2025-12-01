@@ -324,29 +324,53 @@ export function useInvoiceManager() {
       return
     }
 
-    const seen = new Set<string>()
-    invoices.value.forEach(invoice => {
-      // 优先使用发票号码或代码
-      const invoiceNum = invoice.invoiceNumber?.trim()
-      const invoiceCode = invoice.invoiceCode?.trim()
-      let key = invoiceNum || invoiceCode
+    // 用于记录每个 key 第一次出现的发票 ID
+    const firstSeen = new Map<string, string>()
+    // 用于记录重复的发票 ID
+    const duplicateIds = new Set<string>()
 
-      // 如果没有发票号码/代码，但有金额，使用金额+日期+销售方组合
-      if (!key && invoice.totalAmount > 0) {
+    invoices.value.forEach(invoice => {
+      // 优先使用发票号码
+      const invoiceNum = invoice.invoiceNumber?.trim()
+      // 其次使用发票代码
+      const invoiceCode = invoice.invoiceCode?.trim()
+
+      // 只有发票号码才能作为唯一标识进行去重
+      // 发票代码可能在多张发票中相同（同一本发票本）
+      let key = invoiceNum
+
+      // 如果没有发票号码，尝试使用发票代码+金额+日期组合
+      if (!key && invoiceCode && invoice.totalAmount > 0) {
         const amountKey = invoice.totalAmount.toFixed(2)
         const dateKey = invoice.date?.trim() || ''
-        const sellerKey = invoice.seller?.trim() || ''
-        // 组合 key：金额_日期_销售方
+        // 组合 key：代码_金额_日期
+        key = `code_${invoiceCode}_${amountKey}_${dateKey}`
+      }
+
+      // 如果仍然没有 key，但有完整的金额+日期+销售方信息，使用组合 key
+      if (!key && invoice.totalAmount > 0 && invoice.date?.trim() && invoice.seller?.trim()) {
+        const amountKey = invoice.totalAmount.toFixed(2)
+        const dateKey = invoice.date.trim()
+        const sellerKey = invoice.seller.trim()
+        // 组合 key：金额_日期_销售方（必须三者都有才参与去重）
         key = `amt_${amountKey}_${dateKey}_${sellerKey}`
       }
 
       // key 必须有实际内容才参与去重判断
-      if (key && key.length > 0 && seen.has(key)) {
-        invoice.isDuplicate = true
-      } else {
-        invoice.isDuplicate = false
-        if (key && key.length > 0) seen.add(key)
+      if (key && key.length > 0) {
+        if (firstSeen.has(key)) {
+          // 这是重复的发票
+          duplicateIds.add(invoice.id)
+        } else {
+          // 第一次出现，记录下来
+          firstSeen.set(key, invoice.id)
+        }
       }
+    })
+
+    // 更新所有发票的重复状态
+    invoices.value.forEach(invoice => {
+      invoice.isDuplicate = duplicateIds.has(invoice.id)
     })
   }
 
