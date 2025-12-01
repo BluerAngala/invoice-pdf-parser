@@ -1,7 +1,12 @@
 import { ref, computed } from 'vue'
 import type { Invoice, RecognitionProgress } from '../types/invoice'
 import { extractPdfText, isPdfFile } from '../utils/pdfExtract'
-import { recognizeInvoice, type PdfParseData } from '../utils/ocr'
+import {
+  recognizeInvoice,
+  recognizeMultipleInvoices,
+  type PdfParseData,
+  type InvoiceData
+} from '../utils/ocr'
 
 export function useInvoiceManager() {
   const invoices = ref<Invoice[]>([])
@@ -20,11 +25,18 @@ export function useInvoiceManager() {
     return (progress.value.current / progress.value.total) * 100
   })
 
+  // 有效发票数量（排除重复）
   const validInvoiceCount = computed(() => {
     return invoices.value.filter(inv => !inv.isDuplicate).length
   })
 
+  // 总金额（所有导入的发票，不排除重复）
   const totalAmount = computed(() => {
+    return invoices.value.reduce((sum, inv) => sum + inv.totalAmount, 0)
+  })
+
+  // 去重后的金额（排除重复发票）
+  const uniqueTotalAmount = computed(() => {
     return invoices.value
       .filter(inv => !inv.isDuplicate)
       .reduce((sum, inv) => sum + inv.totalAmount, 0)
@@ -51,6 +63,26 @@ export function useInvoiceManager() {
       buyer: '',
       isDuplicate: false,
       recognitionStatus: 'processing'
+    }
+  }
+
+  // 应用识别结果到发票对象
+  function applyInvoiceData(invoice: Invoice, data: InvoiceData) {
+    invoice.invoiceNumber = data.invoiceNumber
+    invoice.invoiceCode = data.invoiceCode
+    invoice.amount = data.amount
+    invoice.taxAmount = data.taxAmount
+    invoice.totalAmount = data.totalAmount
+    invoice.date = data.date
+    invoice.seller = data.seller
+    invoice.buyer = data.buyer
+
+    const hasContent = data.invoiceNumber || data.invoiceCode || data.totalAmount > 0
+    invoice.recognitionStatus = hasContent ? 'success' : 'error'
+
+    if (enableDuplicateRemoval.value) {
+      // 延迟检查重复，等所有发票添加完成
+      setTimeout(() => checkDuplicates(), 100)
     }
   }
 
@@ -113,19 +145,39 @@ export function useInvoiceManager() {
           console.log(`  📑 PDF 包含 ${pages.length} 页`)
 
           for (const page of pages) {
-            const invoice = createInvoice(
-              pages.length > 1 ? `${file.name} - 第${page.pageNumber}页` : file.name,
-              page.imageUrl
-            )
-            invoices.value.push(invoice)
-            console.log(`  ✓ 添加发票: ${invoice.fileName}`)
-            // 异步识别，传递完整的PDF数据
             const pdfData: PdfParseData = {
               fullText: page.fullText,
               text: page.text,
               items: page.items
             }
-            recognizeInvoiceAsync(invoice, pdfData)
+
+            // 检测是否一页多张发票
+            const multiResults = recognizeMultipleInvoices(pdfData)
+
+            if (multiResults.length > 1) {
+              // 一页多张发票
+              console.log(`  📄 第${page.pageNumber}页检测到 ${multiResults.length} 张发票`)
+              for (let idx = 0; idx < multiResults.length; idx++) {
+                const result = multiResults[idx]
+                const invoice = createInvoice(
+                  `${file.name} - 第${page.pageNumber}页 - 发票${idx + 1}`,
+                  page.imageUrl
+                )
+                // 直接填充识别结果
+                applyInvoiceData(invoice, result)
+                invoices.value.push(invoice)
+                console.log(`  ✓ 添加发票: ${invoice.fileName}`)
+              }
+            } else {
+              // 单张发票，异步识别
+              const invoice = createInvoice(
+                pages.length > 1 ? `${file.name} - 第${page.pageNumber}页` : file.name,
+                page.imageUrl
+              )
+              invoices.value.push(invoice)
+              console.log(`  ✓ 添加发票: ${invoice.fileName}`)
+              recognizeInvoiceAsync(invoice, pdfData)
+            }
           }
         } else {
           const imageUrl = await new Promise<string>((resolve, reject) => {
@@ -326,6 +378,7 @@ export function useInvoiceManager() {
     progressPercent,
     validInvoiceCount,
     totalAmount,
+    uniqueTotalAmount,
     selectInvoice,
     handleFileUpload,
     removeInvoice,

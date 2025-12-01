@@ -122,9 +122,9 @@ const props = defineProps<{
   viewMode: 'grid' | 'list'
 }>()
 
-// 统计识别状态
+// 统计识别状态（包含重复发票）
 const successCount = computed(
-  () => props.invoices.filter(inv => inv.recognitionStatus === 'success' && !inv.isDuplicate).length
+  () => props.invoices.filter(inv => inv.recognitionStatus === 'success').length
 )
 const errorCount = computed(
   () => props.invoices.filter(inv => inv.recognitionStatus === 'error').length

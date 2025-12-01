@@ -109,7 +109,7 @@
       <InvoicePreview
         :invoice="currentInvoice"
         :zoom="zoom"
-        :valid-count="validInvoiceCount"
+        :total-count="invoices.length"
         :total-amount="totalAmount"
         @zoom-in="zoomIn"
         @zoom-out="zoomOut"
@@ -144,7 +144,6 @@ const {
   isProcessing,
   enableDuplicateRemoval,
   progressPercent,
-  validInvoiceCount,
   totalAmount,
   selectInvoice,
   handleFileUpload,

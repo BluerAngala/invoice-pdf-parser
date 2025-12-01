@@ -5,7 +5,7 @@
       <div class="stats-center">
         <div class="stat-item">
           <span class="stat-label">发票数量</span>
-          <span class="stat-value">{{ validCount }}</span>
+          <span class="stat-value">{{ totalCount }}</span>
         </div>
         <div class="stat-divider" />
         <div class="stat-item">
@@ -38,7 +38,7 @@ import type { Invoice } from '../types/invoice'
 defineProps<{
   invoice: Invoice | null
   zoom: number
-  validCount: number
+  totalCount: number
   totalAmount: number
 }>()
 
