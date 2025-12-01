@@ -22,7 +22,7 @@ export interface PdfParseData {
 // 识别发票 - 支持一页多张发票
 export async function recognizeInvoice(
   imageUrl: string,
-  fileName: string,
+  _fileName: string,
   pdfData?: PdfParseData
 ): Promise<InvoiceData> {
   // 如果有PDF文本，优先从文本提取
@@ -100,7 +100,7 @@ export async function recognizeInvoice(
 
 // 检测并识别多张发票（一页多张的情况）
 export function recognizeMultipleInvoices(pdfData: PdfParseData): InvoiceData[] {
-  const { fullText, items } = pdfData
+  const { fullText } = pdfData
   const results: InvoiceData[] = []
 
   // 查找所有发票号码及其对应的金额
@@ -120,29 +120,59 @@ export function recognizeMultipleInvoices(pdfData: PdfParseData): InvoiceData[] 
 
   // 直接使用提取到的发票块信息
   for (const block of invoiceBlocks) {
+    // 从block.text中提取购买方和销售方
+    const blockText = block.text || ''
+    let seller = ''
+    let buyer = ''
+    let amount = 0
+    let taxAmount = 0
+
+    // 提取销售方
+    const sellerPatterns = [
+      /销\s*售\s*方[\s\S]{0,30}?名\s*称[:：]?\s*([^\s\n统一社会纳税人识别号]{2,50})/,
+      /销售方名称[:：]?\s*([^\s\n统一]{2,50})/,
+      /销\s*方[:：]?\s*([^\s\n统一]{2,50})/,
+    ]
+    for (const pattern of sellerPatterns) {
+      const match = blockText.match(pattern)
+      if (match && match[1].trim().length > 1) {
+        seller = match[1].trim().replace(/[:：\s（(].*/g, '').replace(/[（(]章[）)]?$/g, '')
+        break
+      }
+    }
+
+    // 提取购买方
+    const buyerPatterns = [
+      /购\s*买\s*方[\s\S]{0,30}?名\s*称[:：]?\s*([^\s\n统一社会纳税人识别号]{2,50})/,
+      /购买方名称[:：]?\s*([^\s\n统一]{2,50})/,
+      /购\s*方[:：]?\s*([^\s\n统一]{2,50})/,
+    ]
+    for (const pattern of buyerPatterns) {
+      const match = blockText.match(pattern)
+      if (match && match[1].trim().length > 1) {
+        buyer = match[1].trim().replace(/[:：\s（(].*/g, '').replace(/[（(]章[）)]?$/g, '')
+        break
+      }
+    }
+
+    // 提取金额和税额
+    const amountTaxMatch = blockText.match(
+      /合\s*计\s+[¥￥]?\s*([\d,]+\.?\d{0,2})\s+[¥￥]?\s*([\d,]+\.?\d{0,2})/
+    )
+    if (amountTaxMatch) {
+      amount = parseFloat(amountTaxMatch[1].replace(/,/g, ''))
+      taxAmount = parseFloat(amountTaxMatch[2].replace(/,/g, ''))
+    }
+
     const result: InvoiceData = {
       invoiceNumber: block.invoiceNumber,
       invoiceCode: block.invoiceCode,
-      amount: 0,
-      taxAmount: 0,
+      amount,
+      taxAmount,
       totalAmount: block.totalAmount,
       date: block.date,
-      seller: '',
-      buyer: ''
-    }
-
-    // 尝试从分割的文本中提取更多信息
-    if (block.text && items && items.length > 0) {
-      const blockData: PdfParseData = {
-        fullText: block.text,
-        text: block.text,
-        items: []
-      }
-      const parsed = parseInvoiceFromPdf(blockData)
-      if (parsed.seller) result.seller = parsed.seller
-      if (parsed.buyer) result.buyer = parsed.buyer
-      if (parsed.amount) result.amount = parsed.amount
-      if (parsed.taxAmount) result.taxAmount = parsed.taxAmount
+      seller,
+      buyer
     }
 
     results.push(result)
@@ -272,12 +302,14 @@ function findInvoiceBlocks(fullText: string): InvoiceBlock[] {
       invoiceCode = codeMatch[1]
     }
 
+    // 扩大文本范围，向前多取一些以包含购买方/销售方信息
+    const textStartIndex = i > 0 ? numMatches[i - 1].index + 50 : 0
     blocks.push({
       invoiceNumber: numMatch.number,
       invoiceCode,
       totalAmount,
       date,
-      text: fullText.substring(numMatch.index, nextNumIndex),
+      text: fullText.substring(textStartIndex, nextNumIndex),
       startIndex: numMatch.index,
       endIndex: nextNumIndex
     })
@@ -291,10 +323,10 @@ function findInvoiceBlocksByAmount(fullText: string, amountPositions: number[]):
   const blocks: InvoiceBlock[] = []
 
   for (let i = 0; i < amountPositions.length; i++) {
-    const amountPos = amountPositions[i]
     // 向前查找该发票的起始位置（上一个金额位置或文本开头）
     const startIndex = i > 0 ? amountPositions[i - 1] + 50 : 0
-    const endIndex = amountPos + 100 // 金额后面一点
+    // 向后扩展到下一个金额位置或文本末尾
+    const endIndex = i < amountPositions.length - 1 ? amountPositions[i + 1] : fullText.length
 
     const segmentText = fullText.substring(startIndex, endIndex)
 
@@ -534,6 +566,10 @@ function parseInvoiceFromPdf(pdfData: PdfParseData): InvoiceData {
       /购\s*买\s*方[\s\S]{0,50}?名\s*称[:：]?\s*([^\s\n统一社会]{2,50})/,
       /购买方名称[:：]?\s*(.+?)(?:\s|$|统一社会)/,
       /购\s*方[:：]?\s*(.+?)(?:\s|$|统一)/,
+      // 全电发票格式
+      /购买方\s*名称[:：]?\s*([^统一\s]{2,50})/,
+      // 查找购买方后面的公司名
+      /购买方[\s\S]{0,30}?([^统一\s]*?有限公司[^统一\s]*)/,
     ]
     for (const pattern of buyerPatterns) {
       const match = fullText.match(pattern)
@@ -542,6 +578,12 @@ function parseInvoiceFromPdf(pdfData: PdfParseData): InvoiceData {
         break
       }
     }
+  }
+
+  // 清理购买方名称中的多余字符
+  if (buyer) {
+    buyer = buyer.replace(/[:：\s（(].*/g, '').trim()
+    buyer = buyer.replace(/[（(]章[）)]?$/g, '').trim()
   }
 
   if (!seller) {

@@ -8,18 +8,22 @@ export function useExport() {
     const validInvoices = invoices.filter(inv => !inv.isDuplicate)
 
     // 准备数据
-    const data = validInvoices.map((inv, index) => ({
-      序号: index + 1,
-      发票号码: inv.invoiceNumber || '未识别',
-      发票代码: inv.invoiceCode || '未识别',
-      开票日期: inv.date || '未识别',
-      销售方: inv.seller || '未识别',
-      购买方: inv.buyer || '未识别',
-      金额: inv.amount,
-      税额: inv.taxAmount,
-      价税合计: inv.totalAmount,
-      文件名: inv.fileName
-    }))
+    const data = validInvoices.map((inv, index) => {
+      // 全电发票（20位号码）没有发票代码，显示为"-"
+      const isFullElectronic = inv.invoiceNumber && inv.invoiceNumber.length === 20
+      return {
+        序号: index + 1,
+        发票号码: inv.invoiceNumber || '',
+        发票代码: inv.invoiceCode || (isFullElectronic ? '-' : ''),
+        开票日期: inv.date || '',
+        销售方: inv.seller || '',
+        购买方: inv.buyer || '',
+        金额: inv.amount,
+        税额: inv.taxAmount,
+        价税合计: inv.totalAmount,
+        文件名: inv.fileName
+      }
+    })
 
     // 添加合计行
     data.push({

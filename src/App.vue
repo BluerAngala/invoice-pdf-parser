@@ -146,7 +146,6 @@ const {
   isProcessing,
   enableDuplicateRemoval,
   progressPercent,
-  totalAmount,
   uniqueTotalAmount,
   validInvoiceCount,
   fileCount,
@@ -223,7 +222,7 @@ function handleExportPDF() {
 }
 
 function handleExportExcel() {
-  exportExcel(invoices.value, totalAmount.value)
+  exportExcel(invoices.value, uniqueTotalAmount.value)
 }
 
 function handlePrint() {
