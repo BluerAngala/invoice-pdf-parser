@@ -18,36 +18,39 @@ export async function extractPdfText(file: File): Promise<PdfPageData[]> {
 
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum)
-    
+
     // 提取文本 - 按Y坐标分组保留行结构
     const textContent = await page.getTextContent()
     const lines = new Map<number, string>()
-    
-    const items = textContent.items as any[]
-    items.forEach((item: any) => {
+
+    const items = textContent.items as Array<{
+      str: string
+      transform: number[]
+    }>
+    items.forEach(item => {
       const y = Math.round(item.transform[5])
       const existing = lines.get(y) || ''
       lines.set(y, existing + ' ' + item.str)
     })
-    
+
     // 按Y坐标排序并拼接文本
     const sortedLines = Array.from(lines.entries()).sort((a, b) => b[0] - a[0])
     const text = sortedLines.map(entry => entry[1]).join('\n')
-    
+
     // 渲染为图片
     const viewport = page.getViewport({ scale: 2.5 })
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d', { alpha: false })
-    
+
     if (!context) continue
-    
+
     canvas.width = viewport.width
     canvas.height = viewport.height
     context.fillStyle = 'white'
     context.fillRect(0, 0, canvas.width, canvas.height)
-    
+
     await page.render({ canvasContext: context, viewport }).promise
-    
+
     pages.push({
       pageNumber: pageNum,
       text,

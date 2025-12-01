@@ -28,24 +28,24 @@
             <h4>OCR 识别设置</h4>
             <div class="setting-item">
               <label class="setting-label">
-                <input type="checkbox" v-model="settings.enableOCR" />
+                <input v-model="settings.enableOCR" type="checkbox" />
                 启用 OCR 识别
               </label>
             </div>
             <div class="setting-item">
               <label>API Key</label>
-              <input 
-                type="password" 
-                v-model="settings.apiKey" 
+              <input
+                v-model="settings.apiKey"
+                type="password"
                 placeholder="请输入 SiliconFlow API Key"
                 class="setting-input"
               />
             </div>
             <div class="setting-item">
               <label>API URL</label>
-              <input 
-                type="text" 
-                v-model="settings.apiUrl" 
+              <input
+                v-model="settings.apiUrl"
+                type="text"
                 placeholder="https://api.siliconflow.cn/v1/chat/completions"
                 class="setting-input"
               />
@@ -56,18 +56,18 @@
             <h4>默认发票信息</h4>
             <div class="setting-item">
               <label>默认购买方</label>
-              <input 
-                type="text" 
-                v-model="settings.defaultBuyer" 
+              <input
+                v-model="settings.defaultBuyer"
+                type="text"
                 placeholder="例如：公司名称"
                 class="setting-input"
               />
             </div>
             <div class="setting-item">
               <label>默认销售方</label>
-              <input 
-                type="text" 
-                v-model="settings.defaultSeller" 
+              <input
+                v-model="settings.defaultSeller"
+                type="text"
                 placeholder="例如：供应商名称"
                 class="setting-input"
               />
@@ -78,7 +78,7 @@
             <h4>其他设置</h4>
             <div class="setting-item">
               <label class="setting-label">
-                <input type="checkbox" v-model="enableDuplicateRemoval" />
+                <input v-model="enableDuplicateRemoval" type="checkbox" />
                 自动去重
               </label>
             </div>
@@ -117,14 +117,11 @@
       />
 
       <!-- 右侧：发票信息 -->
-      <InvoiceDetail
-        :invoice="currentInvoice"
-        @update="updateInvoiceField"
-      />
+      <InvoiceDetail :invoice="currentInvoice" @update="updateInvoiceField" />
     </div>
 
     <!-- 打印预览区域(隐藏) -->
-    <div id="print-area" style="display: none;"></div>
+    <div id="print-area" style="display: none" />
   </div>
 </template>
 
@@ -391,7 +388,7 @@ function handlePrint() {
   cursor: pointer;
 }
 
-.setting-label input[type="checkbox"] {
+.setting-label input[type='checkbox'] {
   margin-right: 8px;
   cursor: pointer;
 }

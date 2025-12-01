@@ -18,11 +18,14 @@ export async function convertPdfToImagesAndText(file: File): Promise<PdfPageData
   // 转换每一页
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum)
-    
+
     // 提取文本 - 保留换行结构
     const textContent = await page.getTextContent()
-    const textItems = textContent.items as any[]
-    
+    const textItems = textContent.items as Array<{
+      str: string
+      transform: number[]
+    }>
+
     // 按Y坐标分组，保留行结构
     const lines: { y: number; text: string }[] = []
     textItems.forEach(item => {
@@ -34,19 +37,19 @@ export async function convertPdfToImagesAndText(file: File): Promise<PdfPageData
         lines.push({ y, text: item.str })
       }
     })
-    
+
     // 按Y坐标排序，生成文本
     lines.sort((a, b) => b.y - a.y)
     const text = lines.map(line => line.text).join('\n')
-    
+
     console.log(`📄 PDF第${pageNum}页提取的文本（完整）:`)
     console.log(text)
-    
+
     // 渲染图片 - 使用更高的缩放比例提升清晰度
     const viewport = page.getViewport({ scale: 3.0 })
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d', { alpha: false })
-    
+
     if (context) {
       canvas.width = viewport.width
       canvas.height = viewport.height

@@ -12,12 +12,12 @@
 
       <div v-if="invoice" class="form-section">
         <h4>
-          当前发票 
+          当前发票
           <button class="edit-toggle-btn" @click="toggleEdit">
             {{ isEditMode ? '👁️ 查看' : '✏️ 编辑' }}
           </button>
         </h4>
-        
+
         <div v-if="!isEditMode" class="current-invoice-info">
           <div class="info-item">
             <span class="info-label">文件名</span>
@@ -43,91 +43,91 @@
             <span class="info-label">金额</span>
             <span class="info-value amount">¥{{ invoice.totalAmount.toFixed(2) }}</span>
           </div>
-          <div v-if="invoice.isDuplicate" class="duplicate-warning">
-            ⚠️ 此发票为重复发票
-          </div>
+          <div v-if="invoice.isDuplicate" class="duplicate-warning">⚠️ 此发票为重复发票</div>
         </div>
 
         <div v-else class="edit-form">
           <div class="form-group-inline">
             <label>发票号码</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               :value="invoice.invoiceNumber"
-              @input="updateField('invoiceNumber', ($event.target as HTMLInputElement).value)"
               placeholder="请输入发票号码"
+              @input="updateField('invoiceNumber', ($event.target as HTMLInputElement).value)"
             />
           </div>
           <div class="form-group-inline">
             <label>发票代码</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               :value="invoice.invoiceCode"
-              @input="updateField('invoiceCode', ($event.target as HTMLInputElement).value)"
               placeholder="请输入发票代码"
+              @input="updateField('invoiceCode', ($event.target as HTMLInputElement).value)"
             />
           </div>
           <div class="form-group-inline">
             <label>开票日期</label>
-            <input 
-              type="date" 
+            <input
+              type="date"
               :value="invoice.date"
               @input="updateField('date', ($event.target as HTMLInputElement).value)"
             />
           </div>
           <div class="form-group-inline">
             <label>销售方</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               :value="invoice.seller"
-              @input="updateField('seller', ($event.target as HTMLInputElement).value)"
               placeholder="请输入销售方名称"
+              @input="updateField('seller', ($event.target as HTMLInputElement).value)"
             />
           </div>
           <div class="form-group-inline">
             <label>购买方</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               :value="invoice.buyer"
-              @input="updateField('buyer', ($event.target as HTMLInputElement).value)"
               placeholder="请输入购买方名称"
+              @input="updateField('buyer', ($event.target as HTMLInputElement).value)"
             />
           </div>
           <div class="form-group-inline">
             <label>金额</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               :value="invoice.amount"
-              @input="updateField('amount', parseFloat(($event.target as HTMLInputElement).value))"
               placeholder="0.00"
               step="0.01"
+              @input="updateField('amount', parseFloat(($event.target as HTMLInputElement).value))"
             />
           </div>
           <div class="form-group-inline">
             <label>税额</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               :value="invoice.taxAmount"
-              @input="updateField('taxAmount', parseFloat(($event.target as HTMLInputElement).value))"
               placeholder="0.00"
               step="0.01"
+              @input="
+                updateField('taxAmount', parseFloat(($event.target as HTMLInputElement).value))
+              "
             />
           </div>
           <div class="form-group-inline highlight-group">
             <label>价税合计</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               :value="invoice.totalAmount"
-              @input="updateField('totalAmount', parseFloat(($event.target as HTMLInputElement).value))"
               placeholder="0.00"
               step="0.01"
               class="highlight-input"
+              @input="
+                updateField('totalAmount', parseFloat(($event.target as HTMLInputElement).value))
+              "
             />
           </div>
         </div>
       </div>
-
-
     </div>
   </div>
 </template>
@@ -346,6 +346,4 @@ function updateField(field: string, value: any) {
   font-size: 15px;
   border-color: #b7eb8f;
 }
-
-
 </style>

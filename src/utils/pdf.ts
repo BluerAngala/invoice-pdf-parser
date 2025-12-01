@@ -6,23 +6,23 @@ import type { Invoice } from '../types/invoice'
 export async function exportToPDF(invoices: Invoice[], elementId: string) {
   const element = document.getElementById(elementId)
   if (!element) return
-  
+
   const canvas = await html2canvas(element, {
     scale: 2,
     useCORS: true,
     logging: false
   })
-  
+
   const imgData = canvas.toDataURL('image/png')
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4'
   })
-  
+
   const imgWidth = 210 // A4宽度
   const imgHeight = (canvas.height * imgWidth) / canvas.width
-  
+
   pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
   pdf.save(`发票统计_${new Date().toLocaleDateString()}.pdf`)
 }
@@ -31,7 +31,7 @@ export async function exportToPDF(invoices: Invoice[], elementId: string) {
 export function generatePrintHTML(invoices: Invoice[]): string {
   const totalAmount = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0)
   const validInvoices = invoices.filter(inv => !inv.isDuplicate)
-  
+
   return `
     <div style="padding: 20px; font-family: 'Microsoft YaHei', sans-serif;">
       <h1 style="text-align: center; margin-bottom: 30px;">发票统计报表</h1>
@@ -56,7 +56,9 @@ export function generatePrintHTML(invoices: Invoice[]): string {
           </tr>
         </thead>
         <tbody>
-          ${validInvoices.map((inv, index) => `
+          ${validInvoices
+            .map(
+              (inv, index) => `
             <tr>
               <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${index + 1}</td>
               <td style="border: 1px solid #ddd; padding: 8px;">${inv.invoiceNumber}</td>
@@ -67,7 +69,9 @@ export function generatePrintHTML(invoices: Invoice[]): string {
               <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">¥${inv.taxAmount.toFixed(2)}</td>
               <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">¥${inv.totalAmount.toFixed(2)}</td>
             </tr>
-          `).join('')}
+          `
+            )
+            .join('')}
         </tbody>
         <tfoot>
           <tr style="background: #f9f9f9; font-weight: bold;">

@@ -7,7 +7,7 @@
           <span class="stat-label">发票数量</span>
           <span class="stat-value">{{ validCount }}</span>
         </div>
-        <div class="stat-divider"></div>
+        <div class="stat-divider" />
         <div class="stat-item">
           <span class="stat-label">总金额</span>
           <span class="stat-value highlight">¥{{ totalAmount.toFixed(2) }}</span>
