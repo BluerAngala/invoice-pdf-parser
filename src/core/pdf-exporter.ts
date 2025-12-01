@@ -1,8 +1,9 @@
+// PDF 导出器
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import type { Invoice } from '../types/invoice'
 
-// 导出PDF
+// 导出为 PDF
 export async function exportToPDF(invoices: Invoice[], elementId: string) {
   const element = document.getElementById(elementId)
   if (!element) return
@@ -20,14 +21,14 @@ export async function exportToPDF(invoices: Invoice[], elementId: string) {
     format: 'a4'
   })
 
-  const imgWidth = 210 // A4宽度
+  const imgWidth = 210
   const imgHeight = (canvas.height * imgWidth) / canvas.width
 
   pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
   pdf.save(`发票统计_${new Date().toLocaleDateString()}.pdf`)
 }
 
-// 生成打印内容HTML
+// 生成打印 HTML
 export function generatePrintHTML(invoices: Invoice[]): string {
   const totalAmount = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0)
   const validInvoices = invoices.filter(inv => !inv.isDuplicate)
@@ -82,4 +83,19 @@ export function generatePrintHTML(invoices: Invoice[]): string {
       </table>
     </div>
   `
+}
+
+// 打印发票
+export function printInvoices(invoices: Invoice[]) {
+  const printArea = document.getElementById('print-area')
+  if (!printArea) return
+
+  const validInvoices = invoices.filter(inv => !inv.isDuplicate)
+  printArea.innerHTML = generatePrintHTML(validInvoices)
+  printArea.style.display = 'block'
+
+  setTimeout(() => {
+    window.print()
+    printArea.style.display = 'none'
+  }, 100)
 }

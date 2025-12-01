@@ -100,11 +100,20 @@
               <div class="invoice-thumb">
                 <img :src="invoice.imageUrl" :alt="invoice.fileName" />
                 <div v-if="invoice.isDuplicate" class="status-tag duplicate">重复</div>
-                <div v-else-if="invoice.recognitionStatus === 'error'" class="status-tag error">失败</div>
-                <div v-else-if="invoice.recognitionStatus === 'processing'" class="status-tag processing">未识别</div>
+                <div v-else-if="invoice.recognitionStatus === 'error'" class="status-tag error">
+                  失败
+                </div>
+                <div
+                  v-else-if="invoice.recognitionStatus === 'processing'"
+                  class="status-tag processing"
+                >
+                  未识别
+                </div>
               </div>
               <div class="invoice-list-info">
-                <div class="invoice-name">{{ getShortName(invoice.fileName, group.sourceFile) }}</div>
+                <div class="invoice-name">
+                  {{ getShortName(invoice.fileName, group.sourceFile) }}
+                </div>
                 <div class="invoice-amount" :class="{ 'amount-zero': invoice.totalAmount === 0 }">
                   ¥{{ invoice.totalAmount.toFixed(2) }}
                 </div>
@@ -126,16 +135,31 @@
           <div class="invoice-thumb">
             <img :src="group.invoices[0].imageUrl" :alt="group.invoices[0].fileName" />
             <div v-if="group.invoices[0].isDuplicate" class="status-tag duplicate">重复</div>
-            <div v-else-if="group.invoices[0].recognitionStatus === 'error'" class="status-tag error">失败</div>
-            <div v-else-if="group.invoices[0].recognitionStatus === 'processing'" class="status-tag processing">未识别</div>
+            <div
+              v-else-if="group.invoices[0].recognitionStatus === 'error'"
+              class="status-tag error"
+            >
+              失败
+            </div>
+            <div
+              v-else-if="group.invoices[0].recognitionStatus === 'processing'"
+              class="status-tag processing"
+            >
+              未识别
+            </div>
           </div>
           <div class="invoice-list-info">
             <div class="invoice-name">{{ group.invoices[0].fileName }}</div>
-            <div class="invoice-amount" :class="{ 'amount-zero': group.invoices[0].totalAmount === 0 }">
+            <div
+              class="invoice-amount"
+              :class="{ 'amount-zero': group.invoices[0].totalAmount === 0 }"
+            >
               ¥{{ group.invoices[0].totalAmount.toFixed(2) }}
             </div>
           </div>
-          <button class="delete-icon" @click.stop="$emit('remove', group.invoices[0].id)">🗑️</button>
+          <button class="delete-icon" @click.stop="$emit('remove', group.invoices[0].id)">
+            🗑️
+          </button>
         </div>
       </template>
 

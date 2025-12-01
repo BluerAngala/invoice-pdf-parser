@@ -1,12 +1,9 @@
 import { ref, computed } from 'vue'
 import type { Invoice, RecognitionProgress } from '../types/invoice'
-import { extractPdfText, isPdfFile } from '../utils/pdfExtract'
-import {
-  recognizeInvoice,
-  recognizeMultipleInvoices,
-  type PdfParseData,
-  type InvoiceData
-} from '../utils/ocr'
+import { extractPdfText, isPdfFile } from '../core/pdf-processor'
+import { recognizeInvoice, recognizeMultipleInvoices } from '../core/invoice-recognizer'
+import { checkDuplicates } from '../core/invoice-deduplicator'
+import type { InvoiceData, PdfParseData } from '../core/invoice-parser'
 
 export function useInvoiceManager() {
   const invoices = ref<Invoice[]>([])
@@ -25,21 +22,23 @@ export function useInvoiceManager() {
     return (progress.value.current / progress.value.total) * 100
   })
 
-  // 有效发票数量（排除重复）
   const validInvoiceCount = computed(() => {
     return invoices.value.filter(inv => !inv.isDuplicate).length
   })
 
-  // 总金额（所有导入的发票，不排除重复）
   const totalAmount = computed(() => {
     return invoices.value.reduce((sum, inv) => sum + inv.totalAmount, 0)
   })
 
-  // 去重后的金额（排除重复发票）
   const uniqueTotalAmount = computed(() => {
     return invoices.value
       .filter(inv => !inv.isDuplicate)
       .reduce((sum, inv) => sum + inv.totalAmount, 0)
+  })
+
+  const fileCount = computed(() => {
+    const files = new Set(invoices.value.map(inv => inv.sourceFile))
+    return files.size
   })
 
   // 选择发票
@@ -70,13 +69,7 @@ export function useInvoiceManager() {
     }
   }
 
-  // 文件数量（去重后的 sourceFile）
-  const fileCount = computed(() => {
-    const files = new Set(invoices.value.map(inv => inv.sourceFile))
-    return files.size
-  })
-
-  // 应用识别结果到发票对象
+  // 应用识别结果
   function applyInvoiceData(invoice: Invoice, data: InvoiceData, method?: 'regex' | 'llm' | 'ocr') {
     invoice.invoiceNumber = data.invoiceNumber
     invoice.invoiceCode = data.invoiceCode
@@ -91,7 +84,6 @@ export function useInvoiceManager() {
     const hasContent = data.invoiceNumber || data.invoiceCode || data.totalAmount > 0
     invoice.recognitionStatus = hasContent ? 'success' : 'error'
     invoice.status = hasContent ? 'valid' : 'invalid'
-    // 不在这里检查重复，统一在文件处理完成后检查
   }
 
   // 处理文件上传
@@ -100,7 +92,6 @@ export function useInvoiceManager() {
 
     console.log(`📁 开始处理文件夹，总文件数: ${files.length}`)
 
-    // 统计信息
     const stats = {
       total: files.length,
       supported: 0,
@@ -111,7 +102,7 @@ export function useInvoiceManager() {
       failedFiles: [] as { name: string; error: string }[]
     }
 
-    // 过滤出支持的文件类型
+    // 过滤支持的文件
     const supportedFiles = Array.from(files).filter(file => {
       const ext = file.name.toLowerCase()
       const isSupported =
@@ -140,6 +131,13 @@ export function useInvoiceManager() {
     isProcessing.value = true
     progress.value = { current: 0, total: supportedFiles.length, status: '处理文件中...' }
 
+    // 获取 API 配置
+    const apiConfig = {
+      apiKey: import.meta.env.VITE_SILICONFLOW_API_KEY || '',
+      apiUrl:
+        import.meta.env.VITE_SILICONFLOW_API_URL || 'https://api.siliconflow.cn/v1/chat/completions'
+    }
+
     for (let i = 0; i < supportedFiles.length; i++) {
       const file = supportedFiles[i]
       progress.value.current = i + 1
@@ -159,40 +157,35 @@ export function useInvoiceManager() {
               items: page.items
             }
 
-            // 检测是否一页多张发票
+            // 检测一页多张
             const multiResults = recognizeMultipleInvoices(pdfData)
 
             if (multiResults.length > 1) {
-              // 一页多张发票
               console.log(`  📄 第${page.pageNumber}页检测到 ${multiResults.length} 张发票`)
               for (let idx = 0; idx < multiResults.length; idx++) {
                 const result = multiResults[idx]
                 const invoice = createInvoice(
                   `${file.name} - 第${page.pageNumber}页 - 发票${idx + 1}`,
                   page.imageUrl,
-                  file.name // 原始文件名
+                  file.name
                 )
-                
-                // 如果发票号码为空，需要异步识别
+
                 if (!result.invoiceNumber) {
                   invoices.value.push(invoice)
-                  recognizeInvoiceAsync(invoice, pdfData)
+                  recognizeInvoiceAsync(invoice, pdfData, apiConfig)
                 } else {
-                  // 直接填充识别结果
                   applyInvoiceData(invoice, result, 'regex')
                   invoices.value.push(invoice)
                 }
               }
             } else {
-              // 单张发票，异步识别
               const invoice = createInvoice(
                 pages.length > 1 ? `${file.name} - 第${page.pageNumber}页` : file.name,
                 page.imageUrl,
-                file.name // 原始文件名
+                file.name
               )
               invoices.value.push(invoice)
-              // console.log(`  ✓ 添加发票: ${invoice.fileName}`)
-              recognizeInvoiceAsync(invoice, pdfData)
+              recognizeInvoiceAsync(invoice, pdfData, apiConfig)
             }
           }
         } else {
@@ -204,9 +197,7 @@ export function useInvoiceManager() {
           })
           const invoice = createInvoice(file.name, imageUrl, file.name)
           invoices.value.push(invoice)
-          // console.log(`  ✓ 添加发票: ${invoice.fileName}`)
-          // 异步识别，不阻塞后续文件处理
-          recognizeInvoiceAsync(invoice)
+          recognizeInvoiceAsync(invoice, undefined, apiConfig)
         }
 
         stats.processed++
@@ -221,16 +212,16 @@ export function useInvoiceManager() {
     isProcessing.value = false
     progress.value.status = '完成'
 
-    // 文件处理完成后统一检查重复
+    // 统一检查重复
     if (enableDuplicateRemoval.value) {
-      checkDuplicates()
+      checkDuplicates(invoices.value, true)
     }
 
     if (!currentInvoice.value && invoices.value.length > 0) {
       currentInvoice.value = invoices.value[0]
     }
 
-    // 显示详细的处理报告
+    // 显示处理报告
     console.log('📊 处理完成统计:')
     console.log(`  总文件数: ${stats.total}`)
     console.log(`  支持的文件: ${stats.supported}`)
@@ -238,7 +229,6 @@ export function useInvoiceManager() {
     console.log(`  处理失败: ${stats.failed}`)
     console.log(`  跳过文件: ${stats.skipped}`)
 
-    // 等待一小段时间让识别状态更新
     setTimeout(() => {
       const recognizedCount = invoices.value.filter(
         inv => inv.recognitionStatus === 'success'
@@ -288,11 +278,14 @@ export function useInvoiceManager() {
   }
 
   // 异步识别发票
-  async function recognizeInvoiceAsync(invoice: Invoice, pdfData?: PdfParseData) {
+  async function recognizeInvoiceAsync(
+    invoice: Invoice,
+    pdfData?: PdfParseData,
+    apiConfig?: { apiKey: string; apiUrl: string }
+  ) {
     try {
-      const result = await recognizeInvoice(invoice.imageUrl, invoice.fileName, pdfData)
+      const result = await recognizeInvoice(invoice.imageUrl, invoice.fileName, pdfData, apiConfig)
 
-      // 逐个字段赋值确保响应式更新
       invoice.invoiceNumber = result.invoiceNumber
       invoice.invoiceCode = result.invoiceCode
       invoice.amount = result.amount
@@ -303,7 +296,6 @@ export function useInvoiceManager() {
       invoice.buyer = result.buyer
       invoice.recognitionStatus = 'success'
 
-      // 检查是否识别到有效内容
       const hasContent = result.invoiceNumber || result.invoiceCode || result.totalAmount > 0
       if (!hasContent) {
         console.warn(`⚠️ 未识别到有效内容: ${invoice.fileName}`)
@@ -313,17 +305,16 @@ export function useInvoiceManager() {
         invoice.status = 'valid'
       }
 
-      // 强制触发响应式更新 - 通过重新赋值触发
+      // 强制触发响应式更新
       invoices.value = [...invoices.value]
       if (currentInvoice.value?.id === invoice.id) {
-        // 重新从数组中获取更新后的对象
         currentInvoice.value = invoices.value.find(inv => inv.id === invoice.id) || null
       }
 
-      // 检查重复并打印结果
-      if (enableDuplicateRemoval.value) checkDuplicates()
+      // 检查重复
+      if (enableDuplicateRemoval.value) checkDuplicates(invoices.value, true)
 
-      // 打印识别结果（包含重复状态，重新获取最新状态）
+      // 打印识别结果
       if (hasContent) {
         const latestInvoice = invoices.value.find(inv => inv.id === invoice.id)
         const statusTag = latestInvoice?.isDuplicate ? ' [重复]' : ' [原始]'
@@ -336,80 +327,6 @@ export function useInvoiceManager() {
       const errorMsg = error instanceof Error ? error.message : '未知错误'
       console.error(`❌ 识别失败: ${invoice.fileName}`, errorMsg)
     }
-  }
-
-  // 检查重复发票
-  function checkDuplicates() {
-    if (!enableDuplicateRemoval.value) {
-      invoices.value.forEach(inv => {
-        inv.isDuplicate = false
-        if (inv.status === 'duplicate') inv.status = 'valid'
-      })
-      return
-    }
-
-    // 先重置所有发票的重复状态
-    invoices.value.forEach(inv => {
-      inv.isDuplicate = false
-      if (inv.status === 'duplicate') inv.status = 'valid'
-    })
-
-    // 用于记录每个 key 第一次出现的发票索引
-    const firstSeenIndex = new Map<string, number>()
-
-    for (let i = 0; i < invoices.value.length; i++) {
-      const invoice = invoices.value[i]
-
-      // 只处理已识别成功的发票
-      if (invoice.recognitionStatus !== 'success') {
-        continue
-      }
-
-      // 生成去重 key
-      const key = getDedupeKey(invoice)
-
-      // key 必须有实际内容才参与去重判断
-      if (key) {
-        const existingIndex = firstSeenIndex.get(key)
-        if (existingIndex !== undefined) {
-          // 当前发票是重复的，标记为重复
-          invoice.isDuplicate = true
-          invoice.status = 'duplicate'
-        } else {
-          // 第一次出现，记录索引，不标记为重复
-          firstSeenIndex.set(key, i)
-        }
-      }
-    }
-  }
-
-  // 生成发票去重 key
-  function getDedupeKey(invoice: Invoice): string | null {
-    // 优先使用发票号码
-    const invoiceNum = invoice.invoiceNumber?.trim()
-    if (invoiceNum) {
-      return invoiceNum
-    }
-
-    // 其次使用发票代码
-    const invoiceCode = invoice.invoiceCode?.trim()
-
-    // 如果没有发票号码，尝试使用发票代码+金额+日期组合
-    if (invoiceCode && invoice.totalAmount > 0) {
-      const amountKey = invoice.totalAmount.toFixed(2)
-      const dateKey = invoice.date?.trim() || ''
-      return `code_${invoiceCode}_${amountKey}_${dateKey}`
-    }
-
-    // 如果仍然没有 key，但有完整的金额+日期+销售方信息，使用组合 key
-    if (invoice.totalAmount > 0 && invoice.date?.trim() && invoice.seller?.trim()) {
-      const amountKey = invoice.totalAmount.toFixed(2)
-      const dateKey = invoice.date.trim()
-      const sellerKey = invoice.seller.trim()
-      return `amt_${amountKey}_${dateKey}_${sellerKey}`
-    }
-
-    return null
   }
 
   // 删除发票
@@ -444,7 +361,7 @@ export function useInvoiceManager() {
     if (currentInvoice.value) {
       ;(currentInvoice.value[field] as typeof value) = value
       if (field === 'invoiceNumber' || field === 'invoiceCode') {
-        checkDuplicates()
+        checkDuplicates(invoices.value, enableDuplicateRemoval.value)
       }
     }
   }
@@ -452,7 +369,7 @@ export function useInvoiceManager() {
   // 切换去重功能
   function toggleDuplicateRemoval() {
     enableDuplicateRemoval.value = !enableDuplicateRemoval.value
-    checkDuplicates()
+    checkDuplicates(invoices.value, enableDuplicateRemoval.value)
   }
 
   return {
