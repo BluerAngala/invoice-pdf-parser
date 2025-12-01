@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, triggerRef } from 'vue'
 import type { Invoice, RecognitionProgress } from '../types/invoice'
 import { extractPdfText, isPdfFile } from '../utils/pdfExtract'
 import { recognizeInvoice } from '../utils/ocr'
@@ -102,7 +102,24 @@ export function useInvoiceManager() {
   async function recognizeInvoiceAsync(invoice: Invoice, pdfText?: string) {
     try {
       const result = await recognizeInvoice(invoice.imageUrl, invoice.fileName, pdfText)
-      Object.assign(invoice, result, { recognitionStatus: 'success' })
+      
+      // 逐个字段赋值确保响应式更新
+      invoice.invoiceNumber = result.invoiceNumber
+      invoice.invoiceCode = result.invoiceCode
+      invoice.amount = result.amount
+      invoice.taxAmount = result.taxAmount
+      invoice.totalAmount = result.totalAmount
+      invoice.date = result.date
+      invoice.seller = result.seller
+      invoice.buyer = result.buyer
+      invoice.recognitionStatus = 'success'
+      
+      // 强制触发响应式更新
+      triggerRef(invoices)
+      if (currentInvoice.value?.id === invoice.id) {
+        triggerRef(currentInvoice)
+      }
+      
       if (enableDuplicateRemoval.value) checkDuplicates()
     } catch (error) {
       invoice.recognitionStatus = 'error'
