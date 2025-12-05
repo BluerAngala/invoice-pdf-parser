@@ -285,14 +285,14 @@ function openContact() {
   align-items: center;
   gap: 12px;
   padding: 8px 20px;
-  background: linear-gradient(135deg, #f6ffed 0%, #e6f7ff 100%);
+  background: #e6f7ff;
   border-radius: 20px;
-  border: 1px solid #6765f4;
+  border: 1px solid #91d5ff;
 }
 
 .privacy-item {
   font-size: 13px;
-  color: #52c41a;
+  color: #1890ff;
   font-weight: 500;
 }
 
