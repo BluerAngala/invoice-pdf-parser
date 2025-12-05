@@ -1,6 +1,47 @@
 // Excel 导出器 - 使用 ExcelJS 支持图片嵌入
 import ExcelJS from 'exceljs'
+import JSZip from 'jszip'
 import type { Invoice } from '../types/invoice'
+
+// 显示加载弹窗
+function showLoadingModal(message: string): HTMLElement {
+  const modal = document.createElement('div')
+  modal.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    ">
+      <div style="
+        background: white;
+        padding: 32px 48px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        text-align: center;
+        min-width: 280px;
+      ">
+        <div style="font-size: 40px; margin-bottom: 16px; animation: spin 1s linear infinite;">⏳</div>
+        <div style="font-size: 16px; font-weight: 500; color: #333; margin-bottom: 8px;">${message}</div>
+        <div style="font-size: 13px; color: #999;">请稍候...</div>
+      </div>
+    </div>
+    <style>
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  `
+  document.body.appendChild(modal)
+  return modal
+}
 
 export async function exportToExcel(invoices: Invoice[]) {
   const validInvoices = invoices.filter(inv => !inv.isDuplicate && inv.status !== 'invalid')
@@ -9,6 +50,9 @@ export async function exportToExcel(invoices: Invoice[]) {
     alert('没有可导出的有效发票')
     return
   }
+
+  // 显示加载弹窗
+  const loadingModal = showLoadingModal('正在打包导出文件...')
 
   // 按开票日期排序
   const sortedInvoices = [...validInvoices].sort((a, b) => {
@@ -239,29 +283,58 @@ export async function exportToExcel(invoices: Invoice[]) {
   const now = new Date()
   const pad = (n: number) => n.toString().padStart(2, '0')
   const dateTimeStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-  const fileName = `发票统计_${totalAmount.toFixed(2)}元_${invoiceCount}张_${dateTimeStr}.xlsx`
+  const baseName = `发票统计_${totalAmount.toFixed(2)}元_${invoiceCount}张_${dateTimeStr}`
 
-  // 导出文件
-  const buffer = await wb.xlsx.writeBuffer()
-  // eslint-disable-next-line no-undef
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  })
-  const url = URL.createObjectURL(blob)
+  // 导出 Excel
+  const excelBuffer = await wb.xlsx.writeBuffer()
+
+  // 创建 ZIP 包
+  const zip = new JSZip()
+
+  // 添加 Excel 文件
+  zip.file(`${baseName}.xlsx`, excelBuffer)
+
+  // 添加 PDF 文件（按序号命名）
+  const pdfFolder = zip.folder('发票文件')
+  const addedPdfs = new Set<string>() // 避免重复添加同一个 PDF
+
+  for (let i = 0; i < sortedInvoices.length; i++) {
+    const inv = sortedInvoices[i]
+    if (inv.pdfData) {
+      const seqNum = String(i + 1).padStart(3, '0')
+      // 如果是多页 PDF 中的一页，使用原文件名
+      const pdfKey = inv.sourceFile
+
+      if (!addedPdfs.has(pdfKey)) {
+        // 整个 PDF 文件只添加一次，用第一个发票的序号
+        const safeName = inv.sourceFile.replace(/[\\/:*?"<>|]/g, '_')
+        pdfFolder?.file(`${seqNum}_${safeName}`, inv.pdfData)
+        addedPdfs.add(pdfKey)
+      }
+    }
+  }
+
+  // 生成 ZIP 并下载
+  const zipBlob = await zip.generateAsync({ type: 'blob' })
+  const url = URL.createObjectURL(zipBlob)
   const a = document.createElement('a')
   a.href = url
-  a.download = fileName
+  a.download = `${baseName}.zip`
   a.click()
   URL.revokeObjectURL(url)
 
+  // 关闭加载弹窗
+  loadingModal.remove()
+
   // 显示导出成功提示
-  showExportSuccess(fileName, invoiceCount, totalAmount)
+  showExportSuccess(`${baseName}.zip`, invoiceCount, totalAmount, addedPdfs.size)
 }
 
 // 显示导出成功提示
-function showExportSuccess(fileName: string, count: number, amount: number) {
+function showExportSuccess(fileName: string, count: number, amount: number, pdfCount?: number) {
   // 创建提示元素
   const toast = document.createElement('div')
+  const pdfInfo = pdfCount ? `<div style="font-size: 13px; color: #1890ff; margin-bottom: 8px;">📁 包含 ${pdfCount} 个 PDF 文件</div>` : ''
   toast.innerHTML = `
     <div style="
       position: fixed;
@@ -279,6 +352,7 @@ function showExportSuccess(fileName: string, count: number, amount: number) {
       <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
       <div style="font-size: 18px; font-weight: 600; color: #52c41a; margin-bottom: 12px;">导出成功！</div>
       <div style="font-size: 14px; color: #666; margin-bottom: 8px;">共 ${count} 张发票，合计 ¥${amount.toFixed(2)}</div>
+      ${pdfInfo}
       <div style="font-size: 12px; color: #999; word-break: break-all; max-width: 300px;">${fileName}</div>
     </div>
     <div style="

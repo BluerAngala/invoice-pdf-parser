@@ -126,8 +126,6 @@
       <InvoiceList
         :invoices="invoices"
         :current-id="currentInvoice?.id || null"
-        :is-processing="isProcessing"
-        :progress-percent="progressPercent"
         :view-mode="listViewMode"
         :file-count="fileCount"
         @select="selectInvoice"
@@ -170,8 +168,6 @@ import { useInvoiceExport } from './composables/useInvoiceExport'
 const {
   invoices,
   currentInvoice,
-  isProcessing,
-  progressPercent,
   uniqueTotalAmount,
   validInvoiceCount,
   fileCount,

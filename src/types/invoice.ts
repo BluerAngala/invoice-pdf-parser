@@ -5,6 +5,8 @@ export interface Invoice {
   sourceFile: string // 原始文件名（用于分组）
   uploadTime: string // 上传时间
   imageUrl: string // 图片数据（base64 或 URL）
+  pdfData?: ArrayBuffer // 原始 PDF 数据（用于导出）
+  pageNumber?: number // PDF 页码（多页 PDF 时使用）
 
   // 发票核心信息
   invoiceNumber: string // 发票号码

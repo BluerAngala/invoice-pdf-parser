@@ -5,6 +5,159 @@ import { recognizeInvoice, recognizeMultipleInvoices } from '../core/invoice-rec
 import { checkDuplicates } from '../core/invoice-deduplicator'
 import type { InvoiceData, PdfParseData } from '../core/invoice-parser'
 
+// 显示加载弹窗
+function showLoadingModal(message: string): { update: (msg: string) => void; close: () => void } {
+  const modal = document.createElement('div')
+  modal.id = 'import-loading-modal'
+  modal.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    ">
+      <div style="
+        background: white;
+        padding: 32px 48px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        text-align: center;
+        min-width: 300px;
+      ">
+        <div style="font-size: 40px; margin-bottom: 16px; animation: spin 1s linear infinite;">📄</div>
+        <div id="loading-message" style="font-size: 16px; font-weight: 500; color: #333; margin-bottom: 8px;">${message}</div>
+        <div id="loading-sub" style="font-size: 13px; color: #999;">请稍候...</div>
+      </div>
+    </div>
+    <style>
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  `
+  document.body.appendChild(modal)
+
+  return {
+    update: (msg: string) => {
+      const msgEl = modal.querySelector('#loading-message')
+      if (msgEl) msgEl.textContent = msg
+    },
+    close: () => modal.remove()
+  }
+}
+
+// 显示结果弹窗
+interface ImportResult {
+  total: number
+  processed: number
+  recognized: number
+  errorCount: number
+  duplicates: number
+  failed: number
+  skipped: number
+}
+
+function showResultModal(result: ImportResult) {
+  const modal = document.createElement('div')
+  const hasError = result.errorCount > 0 || result.failed > 0
+  const icon = hasError ? '⚠️' : '✅'
+  const title = hasError ? '导入完成（部分异常）' : '导入完成'
+  const titleColor = hasError ? '#fa8c16' : '#52c41a'
+
+  modal.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    " onclick="if(event.target === this) this.parentElement.remove()">
+      <div style="
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        width: 420px;
+        overflow: hidden;
+        animation: fadeIn 0.2s ease;
+      ">
+        <div style="
+          background: linear-gradient(135deg, ${titleColor} 0%, ${hasError ? '#ffc53d' : '#73d13d'} 100%);
+          padding: 24px;
+          text-align: center;
+          color: white;
+        ">
+          <div style="font-size: 42px; margin-bottom: 8px;">${icon}</div>
+          <div style="font-size: 18px; font-weight: 600;">${title}</div>
+        </div>
+        <div style="padding: 20px;">
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+            <span style="color: #666;">📁 选择文件数</span>
+            <span style="font-weight: 600; color: #333;">${result.total}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+            <span style="color: #666;">✅ 成功导入</span>
+            <span style="font-weight: 600; color: #52c41a;">${result.processed} 个文件</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+            <span style="color: #666;">📄 已识别发票</span>
+            <span style="font-weight: 600; color: #1890ff;">${result.recognized} 张</span>
+          </div>
+          ${result.duplicates > 0 ? `
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+            <span style="color: #666;">🔄 重复发票</span>
+            <span style="font-weight: 600; color: #fa8c16;">${result.duplicates} 张</span>
+          </div>` : ''}
+          ${result.errorCount > 0 ? `
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+            <span style="color: #666;">⚠️ 识别异常</span>
+            <span style="font-weight: 600; color: #ff4d4f;">${result.errorCount} 张</span>
+          </div>` : ''}
+          ${result.failed > 0 ? `
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+            <span style="color: #666;">❌ 导入失败</span>
+            <span style="font-weight: 600; color: #ff4d4f;">${result.failed} 个</span>
+          </div>` : ''}
+          ${result.skipped > 0 ? `
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+            <span style="color: #666;">⏭️ 跳过文件</span>
+            <span style="font-weight: 600; color: #999;">${result.skipped} 个</span>
+          </div>` : ''}
+        </div>
+        <div style="padding: 16px 20px; background: #fafafa; text-align: center;">
+          <button onclick="this.closest('[style*=position]').parentElement.remove()" style="
+            padding: 8px 32px;
+            background: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+          ">确定</button>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+      }
+    </style>
+  `
+  document.body.appendChild(modal)
+}
+
 export function useInvoiceManager() {
   const invoices = ref<Invoice[]>([])
   const currentInvoice = ref<Invoice | null>(null)
@@ -47,13 +200,21 @@ export function useInvoiceManager() {
   }
 
   // 创建发票对象
-  function createInvoice(fileName: string, imageUrl: string, sourceFile: string): Invoice {
+  function createInvoice(
+    fileName: string,
+    imageUrl: string,
+    sourceFile: string,
+    pdfData?: ArrayBuffer,
+    pageNumber?: number
+  ): Invoice {
     return {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
       fileName,
       sourceFile,
       uploadTime: new Date().toISOString(),
       imageUrl,
+      pdfData,
+      pageNumber,
       invoiceNumber: '',
       invoiceCode: '',
       amount: 0,
@@ -128,6 +289,9 @@ export function useInvoiceManager() {
 
     console.log(`✅ 找到 ${supportedFiles.length} 个支持的文件`)
 
+    // 显示加载弹窗
+    const loadingModal = showLoadingModal(`正在导入 ${supportedFiles.length} 个文件...`)
+
     isProcessing.value = true
     progress.value = { current: 0, total: supportedFiles.length, status: '处理文件中...' }
 
@@ -148,18 +312,20 @@ export function useInvoiceManager() {
         console.log(`📄 处理文件 [${index + 1}/${supportedFiles.length}]: ${file.name}`)
 
         if (isPdfFile(file)) {
+          // 读取原始 PDF 数据
+          const pdfArrayBuffer = await file.arrayBuffer()
           const pages = await extractPdfText(file)
           console.log(`  📑 PDF 包含 ${pages.length} 页`)
 
           for (const page of pages) {
-            const pdfData: PdfParseData = {
+            const pdfParseData: PdfParseData = {
               fullText: page.fullText,
               text: page.text,
               items: page.items
             }
 
             // 检测一页多张
-            const multiResults = recognizeMultipleInvoices(pdfData)
+            const multiResults = recognizeMultipleInvoices(pdfParseData)
 
             if (multiResults.length > 1) {
               console.log(`  📄 第${page.pageNumber}页检测到 ${multiResults.length} 张发票`)
@@ -168,12 +334,14 @@ export function useInvoiceManager() {
                 const invoice = createInvoice(
                   `${file.name} - 第${page.pageNumber}页 - 发票${idx + 1}`,
                   page.imageUrl,
-                  file.name
+                  file.name,
+                  pdfArrayBuffer,
+                  page.pageNumber
                 )
 
                 if (!result.invoiceNumber) {
                   invoices.value.push(invoice)
-                  recognizeInvoiceAsync(invoice, pdfData, apiConfig)
+                  recognizeInvoiceAsync(invoice, pdfParseData, apiConfig)
                 } else {
                   applyInvoiceData(invoice, result, 'regex')
                   invoices.value.push(invoice)
@@ -183,10 +351,12 @@ export function useInvoiceManager() {
               const invoice = createInvoice(
                 pages.length > 1 ? `${file.name} - 第${page.pageNumber}页` : file.name,
                 page.imageUrl,
-                file.name
+                file.name,
+                pdfArrayBuffer,
+                page.pageNumber
               )
               invoices.value.push(invoice)
-              recognizeInvoiceAsync(invoice, pdfData, apiConfig)
+              recognizeInvoiceAsync(invoice, pdfParseData, apiConfig)
             }
           }
         } else {
@@ -211,6 +381,7 @@ export function useInvoiceManager() {
         completedCount++
         progress.value.current = completedCount
         progress.value.status = `处理 ${completedCount}/${supportedFiles.length}`
+        loadingModal.update(`正在处理 ${completedCount}/${supportedFiles.length}...`)
       }
     }
 
@@ -219,6 +390,9 @@ export function useInvoiceManager() {
       const batch = supportedFiles.slice(i, i + CONCURRENCY)
       await Promise.all(batch.map((file, idx) => processFile(file, i + idx)))
     }
+
+    // 关闭加载弹窗
+    loadingModal.close()
 
     isProcessing.value = false
     progress.value.status = '完成'
@@ -240,6 +414,7 @@ export function useInvoiceManager() {
     console.log(`  处理失败: ${stats.failed}`)
     console.log(`  跳过文件: ${stats.skipped}`)
 
+    // 显示结果弹窗
     setTimeout(() => {
       const recognizedCount = invoices.value.filter(
         inv => inv.recognitionStatus === 'success'
@@ -249,43 +424,16 @@ export function useInvoiceManager() {
       ).length
       const duplicates = invoices.value.filter(inv => inv.isDuplicate).length
 
-      let message = `📊 文件处理完成\n\n`
-      message += `━━━━━━━━━━━━━━━━━━━━\n`
-      message += `📁 选择文件数: ${stats.total}\n`
-      message += `━━━━━━━━━━━━━━━━━━━━\n\n`
-
-      message += `✅ 成功导入: ${stats.processed} 个文件\n`
-      message += `📄 已识别: ${recognizedCount} 张发票\n`
-
-      if (recognitionErrorCount > 0) {
-        message += `⚠️ 存在问题: ${recognitionErrorCount} 张\n`
-        message += `   (未识别到有效内容)\n`
-      }
-
-      if (duplicates > 0) {
-        message += `🔄 重复发票: ${duplicates} 张\n`
-      }
-
-      if (stats.failed > 0) {
-        message += `\n❌ 导入失败: ${stats.failed} 个\n`
-        stats.failedFiles.forEach(f => {
-          message += `  • ${f.name}\n    ${f.error}\n`
-        })
-      }
-
-      if (stats.skipped > 0) {
-        message += `\n⏭️ 跳过不支持格式: ${stats.skipped} 个\n`
-        if (stats.skippedFiles.length <= 5) {
-          stats.skippedFiles.forEach(name => {
-            message += `  • ${name}\n`
-          })
-        } else {
-          message += `  (${stats.skippedFiles.length} 个文件)\n`
-        }
-      }
-
-      alert(message)
-    }, 1000)
+      showResultModal({
+        total: stats.total,
+        processed: stats.processed,
+        recognized: recognizedCount,
+        errorCount: recognitionErrorCount,
+        duplicates,
+        failed: stats.failed,
+        skipped: stats.skipped
+      })
+    }, 500)
   }
 
   // 异步识别发票

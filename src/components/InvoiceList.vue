@@ -42,10 +42,6 @@
       </div>
     </div>
 
-    <div v-if="isProcessing" class="progress-bar">
-      <div class="progress-fill" :style="{ width: progressPercent + '%' }" />
-    </div>
-
     <div v-if="invoices.length > 0" class="stats-panel">
       <div class="stat-row">
         <div class="stat-item">
@@ -191,8 +187,6 @@ import type { Invoice } from '../types/invoice'
 const props = defineProps<{
   invoices: Invoice[]
   currentId: string | null
-  isProcessing: boolean
-  progressPercent: number
   viewMode: 'grid' | 'list'
   fileCount: number
 }>()
@@ -403,19 +397,6 @@ function getShortName(fileName: string, sourceFile: string): string {
 .upload-hint {
   font-size: 12px;
   color: #999;
-}
-
-.progress-bar {
-  height: 3px;
-  background: #f0f0f0;
-  margin: 0 15px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #1890ff;
-  transition: width 0.3s;
 }
 
 .stats-panel {
