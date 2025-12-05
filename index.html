@@ -4,9 +4,161 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>发票识别统计工具</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; }
+    
+    html, body { height: 100%; overflow: hidden; }
+    
+    .hero {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1890ff 0%, #36cfc9 100%);
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .hero h1 {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .hero p {
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin-bottom: 24px;
+      opacity: 0.95;
+      line-height: 1.6;
+    }
+    
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 720px;
+      margin-bottom: 24px;
+    }
+    
+    .feature {
+      background: rgba(255,255,255,0.12);
+      padding: 16px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      color: #fff;
+    }
+    
+    .feature i {
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+      display: block;
+      color: #fff;
+    }
+    
+    .feature h3 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+      color: #fff;
+      font-weight: 600;
+    }
+    
+    .feature p {
+      font-size: 0.85rem;
+      margin: 0;
+      color: rgba(255,255,255,0.9);
+    }
+    
+    .btn-start {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 36px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1890ff;
+      background: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.3s;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .btn-start:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+    
+    .notice {
+      margin-bottom: 20px;
+      padding: 14px 28px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 30px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1890ff;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2rem; }
+      .features { grid-template-columns: 1fr; max-width: 300px; }
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script type="module" src="/src/main.ts"></script>
+  <section class="hero">
+    <h1>📄 发票识别统计工具</h1>
+    <p>纯前端的 PDF 发票识别、统计工具<br>支持批量选择发票文件、选择发票文件夹、智能去重、金额统计、导出 Excel</p>
+    
+    <div class="features">
+      <div class="feature">
+        <i class="fas fa-file-pdf"></i>
+        <h3>PDF 发票识别</h3>
+        <p>自动解析 PDF 发票信息</p>
+      </div>
+      <div class="feature">
+        <i class="fas fa-upload"></i>
+        <h3>批量处理</h3>
+        <p>支持处理发票文件和文件夹</p>
+      </div>
+      <div class="feature">
+        <i class="fas fa-clone"></i>
+        <h3>智能去重</h3>
+        <p>自动检测重复发票</p>
+      </div>
+      <div class="feature">
+        <i class="fas fa-calculator"></i>
+        <h3>金额统计</h3>
+        <p>自动计算金额合计</p>
+      </div>
+      <div class="feature">
+        <i class="fas fa-file-excel"></i>
+        <h3>导出 Excel</h3>
+        <p>一键导出发票清单</p>
+      </div>
+      <div class="feature">
+        <i class="fas fa-search"></i>
+        <h3>发票预览</h3>
+        <p>支持缩放查看发票详情</p>
+      </div>
+    </div>
+    
+    <div class="notice">
+      🔒 所有数据本地处理，不上传服务器，安全可靠
+    </div>
+    
+    <a href="app.html" class="btn-start">
+      <i class="fas fa-rocket"></i>
+      开始使用
+    </a>
+  </section>
 </body>
 </html>

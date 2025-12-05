@@ -3,6 +3,15 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
+  build: {
+    outDir: 'dist',
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        app: 'app.html'
+      }
+    }
+  },
   optimizeDeps: {
     exclude: ['tesseract.js']
   }
