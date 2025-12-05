@@ -25,16 +25,21 @@
         style="display: none"
         @change="handleFileChange"
       />
-      <button class="upload-btn" @click="triggerUpload">
+      <div class="upload-buttons">
+        <button class="select-btn file-btn" @click="triggerUpload">📄 选择文件</button>
+        <button class="select-btn folder-btn" @click="triggerFolderUpload">📂 选择文件夹</button>
+      </div>
+      <div
+        class="upload-dropzone"
+        @dragover.prevent="isDragging = true"
+        @dragleave.prevent="isDragging = false"
+        @drop.prevent="handleDrop"
+        :class="{ dragging: isDragging }"
+      >
         <div class="upload-icon">☁️</div>
-        <div>拖放发票文件到此处，或</div>
-        <div class="upload-actions">
-          <span class="upload-link">📎 选择文件</span>
-          <span class="upload-divider">|</span>
-          <span class="upload-link" @click.stop="triggerFolderUpload">📁 选择文件夹</span>
-        </div>
+        <div class="upload-text">拖放 PDF 发票到此处</div>
         <div class="upload-hint">仅支持 PDF 格式</div>
-      </button>
+      </div>
     </div>
 
     <div v-if="isProcessing" class="progress-bar">
@@ -195,6 +200,17 @@ const props = defineProps<{
 // 展开状态
 const expandedGroups = ref<Set<string>>(new Set())
 
+// 拖拽状态
+const isDragging = ref(false)
+
+function handleDrop(event: DragEvent) {
+  isDragging.value = false
+  const files = event.dataTransfer?.files
+  if (files && files.length > 0) {
+    emit('upload', files)
+  }
+}
+
 // 按文件分组
 const invoiceGroups = computed(() => {
   const groups = new Map<string, Invoice[]>()
@@ -311,57 +327,82 @@ function getShortName(fileName: string, sourceFile: string): string {
   border-bottom: 1px solid #e8e8e8;
 }
 
-.upload-btn {
-  width: 100%;
-  padding: 30px 20px;
+.upload-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.select-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s;
+  color: #333;
+}
+
+.select-btn:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.file-btn {
+  background: #1890ff;
+  border-color: #1890ff;
+  color: white;
+}
+
+.file-btn:hover {
+  background: #40a9ff;
+  border-color: #40a9ff;
+  color: white;
+}
+
+.folder-btn {
+  background: #52c41a;
+  border-color: #52c41a;
+  color: white;
+}
+
+.folder-btn:hover {
+  background: #73d13d;
+  border-color: #73d13d;
+  color: white;
+}
+
+.upload-dropzone {
+  padding: 24px 16px;
   border: 2px dashed #d9d9d9;
   background: #fafafa;
   border-radius: 8px;
-  cursor: pointer;
   text-align: center;
   transition: all 0.3s;
-  font-size: 13px;
-  color: #666;
 }
 
-.upload-btn:hover {
+.upload-dropzone.dragging {
   border-color: #1890ff;
-  background: #f0f8ff;
+  background: #e6f7ff;
 }
 
 .upload-icon {
-  font-size: 32px;
-  margin-bottom: 10px;
+  font-size: 28px;
+  margin-bottom: 8px;
 }
 
-.upload-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 8px 0;
-}
-
-.upload-link {
-  color: #1890ff;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.upload-link:hover {
-  color: #40a9ff;
-  text-decoration: underline;
-}
-
-.upload-divider {
-  color: #d9d9d9;
+.upload-text {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 4px;
 }
 
 .upload-hint {
   font-size: 12px;
   color: #999;
-  margin-top: 5px;
 }
 
 .progress-bar {
