@@ -1,5 +1,14 @@
 <template>
   <div class="app">
+    <!-- 移动端提示 -->
+    <div v-if="showMobileTip" class="mobile-tip">
+      <div class="mobile-tip-content">
+        <span>📱</span>
+        <span>建议使用电脑访问，体验更佳，部分功能在手机上可能无法正常使用</span>
+      </div>
+      <button class="mobile-tip-close" @click="showMobileTip = false">×</button>
+    </div>
+
     <!-- 顶部导航 -->
     <header class="header">
       <div class="header-left">
@@ -187,6 +196,10 @@ const zoom = ref(1)
 const showMoreModal = ref(false)
 const showChangelogModal = ref(false)
 const showContactModal = ref(false)
+
+// 移动端检测
+const isMobile = () => window.innerWidth <= 768
+const showMobileTip = ref(isMobile())
 
 // 更新日志数据
 const changelog = [
@@ -805,5 +818,97 @@ function openContact() {
   margin: 16px 0 0 0;
   color: #888;
   font-size: 13px;
+}
+
+/* 移动端提示 */
+.mobile-tip {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #faad14 0%, #fa8c16 100%);
+  color: white;
+  padding: 10px 40px 10px 16px;
+  text-align: center;
+  font-size: 13px;
+  z-index: 1001;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-tip-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mobile-tip-close {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.mobile-tip-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 移动端响应式 */
+@media (max-width: 768px) {
+  .mobile-tip {
+    display: block;
+  }
+
+  .app {
+    padding-top: 40px;
+  }
+
+  .header {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .header-left {
+    min-width: auto;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .logo {
+    font-size: 14px;
+  }
+
+  .header-center {
+    display: none;
+  }
+
+  .header-right {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .action-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .main-content {
+    flex-direction: column;
+  }
 }
 </style>

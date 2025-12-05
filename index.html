@@ -7,12 +7,16 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      color: #333;
+      background: linear-gradient(135deg, #1890ff 0%, #36cfc9 100%);
+    }
     
-    html, body { height: 100%; overflow: hidden; }
+    html, body { height: 100%; }
     
     .hero {
-      height: 100vh;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -108,12 +112,81 @@
     }
     
     @media (max-width: 768px) {
-      .hero h1 { font-size: 2rem; }
-      .features { grid-template-columns: 1fr; max-width: 300px; }
+      .hero h1 { font-size: 1.6rem; }
+      .hero p { font-size: 0.95rem; padding: 0 10px; }
+      .features { grid-template-columns: repeat(2, 1fr); max-width: 320px; gap: 10px; }
+      .feature { padding: 10px 8px; }
+      .feature i { font-size: 1.2rem; margin-bottom: 4px; }
+      .feature h3 { font-size: 0.8rem; }
+      .feature p { font-size: 0.7rem; }
+      .btn-start { padding: 12px 28px; font-size: 1rem; }
+      .notice { padding: 10px 16px; font-size: 0.85rem; max-width: 320px; }
+    }
+    
+    /* 移动端提示横幅 - 底部 */
+    .mobile-tip {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0,0,0,0.75);
+      color: white;
+      padding: 18px 40px 18px 16px;
+      text-align: center;
+      font-size: 0.9rem;
+      z-index: 1000;
+    }
+    
+    .mobile-tip-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    
+    .mobile-tip-close {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+    }
+    
+    .mobile-tip-close:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    
+    @media (max-width: 768px) {
+      .mobile-tip { display: block; }
+      .hero { 
+        padding-top: 80px; 
+        padding-bottom: 70px;
+        min-height: auto;
+        justify-content: flex-start;
+      }
     }
   </style>
 </head>
 <body>
+  <!-- 移动端提示 -->
+  <div class="mobile-tip" id="mobileTip">
+    <div class="mobile-tip-content">
+      <span>📱</span>
+      <span>建议使用电脑访问，体验更佳<br>部分功能在手机上可能无法正常使用</span>
+    </div>
+    <button class="mobile-tip-close" onclick="document.getElementById('mobileTip').style.display='none'">×</button>
+  </div>
+  
   <section class="hero">
     <h1>📄 发票识别统计工具</h1>
     <p>纯前端的 PDF 发票识别、统计工具<br>支持批量选择发票文件、选择发票文件夹、智能去重、金额统计、导出 Excel</p>
