@@ -287,7 +287,7 @@ function openContact() {
   padding: 8px 20px;
   background: linear-gradient(135deg, #f6ffed 0%, #e6f7ff 100%);
   border-radius: 20px;
-  border: 1px solid #b7eb8f;
+  border: 1px solid #6765f4;
 }
 
 .privacy-item {

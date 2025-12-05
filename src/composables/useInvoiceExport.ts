@@ -4,8 +4,8 @@ import type { Invoice } from '../types/invoice'
 
 export function useInvoiceExport() {
   // 导出 Excel
-  function exportExcel(invoices: Invoice[]) {
-    exportToExcel(invoices)
+  async function exportExcel(invoices: Invoice[]) {
+    await exportToExcel(invoices)
   }
 
   return {
