@@ -1,14 +1,16 @@
 <template>
-  <div class="app">
-    <!-- 移动端提示 -->
-    <div v-if="showMobileTip" class="mobile-tip">
-      <div class="mobile-tip-content">
-        <span>📱</span>
-        <span>建议使用电脑访问，体验更佳，部分功能在手机上可能无法正常使用</span>
-      </div>
-      <button class="mobile-tip-close" @click="showMobileTip = false">×</button>
+  <!-- 移动端全屏提示 -->
+  <div v-if="isMobileDevice" class="mobile-block">
+    <div class="mobile-block-content">
+      <div class="mobile-block-icon">💻</div>
+      <h2>请使用电脑访问</h2>
+      <p>本工具需要上传文件、预览 PDF 等操作，<br />在手机上无法正常使用</p>
+      <p class="mobile-block-tip">请在电脑浏览器中打开此页面</p>
+      <a href="index.html" class="mobile-block-btn">← 返回首页</a>
     </div>
+  </div>
 
+  <div v-else class="app">
     <!-- 顶部导航 -->
     <header class="header">
       <div class="header-left">
@@ -198,8 +200,7 @@ const showChangelogModal = ref(false)
 const showContactModal = ref(false)
 
 // 移动端检测
-const isMobile = () => window.innerWidth <= 768
-const showMobileTip = ref(isMobile())
+const isMobileDevice = ref(window.innerWidth <= 768)
 
 // 更新日志数据
 const changelog = [
@@ -820,95 +821,62 @@ function openContact() {
   font-size: 13px;
 }
 
-/* 移动端提示 */
-.mobile-tip {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(135deg, #faad14 0%, #fa8c16 100%);
-  color: white;
-  padding: 10px 40px 10px 16px;
-  text-align: center;
-  font-size: 13px;
-  z-index: 1001;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.mobile-tip-content {
+/* 移动端全屏提示 */
+.mobile-block {
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  background: linear-gradient(135deg, #1890ff 0%, #36cfc9 100%);
+  padding: 20px;
 }
 
-.mobile-tip-close {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
+.mobile-block-content {
+  text-align: center;
   color: white;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  cursor: pointer;
+  max-width: 320px;
+}
+
+.mobile-block-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.mobile-block-content h2 {
+  font-size: 24px;
+  margin: 0 0 16px 0;
+}
+
+.mobile-block-content p {
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 12px 0;
+  opacity: 0.95;
+}
+
+.mobile-block-tip {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 12px 16px;
+  border-radius: 8px;
   font-size: 14px;
-  line-height: 1;
+  margin-top: 20px;
 }
 
-.mobile-tip-close:hover {
-  background: rgba(255, 255, 255, 0.3);
+.mobile-block-btn {
+  display: inline-block;
+  margin-top: 24px;
+  padding: 12px 28px;
+  background: white;
+  color: #1890ff;
+  text-decoration: none;
+  border-radius: 24px;
+  font-weight: 600;
+  font-size: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* 移动端响应式 */
-@media (max-width: 768px) {
-  .mobile-tip {
-    display: block;
-  }
-
-  .app {
-    padding-top: 40px;
-  }
-
-  .header {
-    flex-wrap: wrap;
-    height: auto;
-    padding: 10px;
-    gap: 8px;
-  }
-
-  .header-left {
-    min-width: auto;
-    width: 100%;
-    justify-content: center;
-  }
-
-  .logo {
-    font-size: 14px;
-  }
-
-  .header-center {
-    display: none;
-  }
-
-  .header-right {
-    width: 100%;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px;
-  }
-
-  .action-btn {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-
-  .main-content {
-    flex-direction: column;
-  }
+.mobile-block-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 </style>
