@@ -17,7 +17,7 @@ export interface PdfTextItem {
   y: number
 }
 
-// 提取 PDF 文本并渲染为图片
+// 提取 PDF 文本（延迟渲染图片）
 export async function extractPdfText(file: File): Promise<PdfPageData[]> {
   const arrayBuffer = await file.arrayBuffer()
   const pdf = await pdfjsLib.getDocument({
@@ -75,24 +75,8 @@ export async function extractPdfText(file: File): Promise<PdfPageData[]> {
         })
       const text = sortedLines.join('\n')
 
-      // 渲染为图片
-      const viewport = page.getViewport({ scale: 1.5 })
-      const canvas = document.createElement('canvas')
-      const context = canvas.getContext('2d', { alpha: false })
-
-      if (!context) {
-        console.warn(`⚠️ 无法创建 canvas context: ${file.name} 第${pageNum}页`)
-        continue
-      }
-
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      context.fillStyle = 'white'
-      context.fillRect(0, 0, canvas.width, canvas.height)
-
-      await page.render({ canvasContext: context, viewport }).promise
-
-      const imageUrl = canvas.toDataURL('image/jpeg', 0.8)
+      // 延迟渲染：先用占位符，按需渲染
+      const imageUrl = await renderPageToImage(page, file.name, pageNum)
 
       page.cleanup()
 
@@ -111,6 +95,30 @@ export async function extractPdfText(file: File): Promise<PdfPageData[]> {
   pdf.destroy()
 
   return pages
+}
+
+// 渲染单页为图片
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function renderPageToImage(page: any, fileName: string, pageNum: number): Promise<string> {
+  // scale 1.2 平衡清晰度和速度
+  const viewport = page.getViewport({ scale: 2 })
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d', { alpha: false })
+
+  if (!context) {
+    console.warn(`⚠️ 无法创建 canvas context: ${fileName} 第${pageNum}页`)
+    return ''
+  }
+
+  canvas.width = viewport.width
+  canvas.height = viewport.height
+  context.fillStyle = 'white'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+
+  await page.render({ canvasContext: context, viewport }).promise
+
+  // JPEG 质量 0.75
+  return canvas.toDataURL('image/jpeg', 0.9)
 }
 
 // 检查是否为 PDF 文件

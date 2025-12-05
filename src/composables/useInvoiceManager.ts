@@ -138,13 +138,14 @@ export function useInvoiceManager() {
         import.meta.env.VITE_SILICONFLOW_API_URL || 'https://api.siliconflow.cn/v1/chat/completions'
     }
 
-    for (let i = 0; i < supportedFiles.length; i++) {
-      const file = supportedFiles[i]
-      progress.value.current = i + 1
-      progress.value.status = `处理 ${i + 1}/${supportedFiles.length}: ${file.name}`
+    // 并发处理配置
+    const CONCURRENCY = 4 // 同时处理 4 个文件
+    let completedCount = 0
 
+    // 处理单个文件
+    async function processFile(file: File, index: number) {
       try {
-        console.log(`📄 处理文件 [${i + 1}/${supportedFiles.length}]: ${file.name}`)
+        console.log(`📄 处理文件 [${index + 1}/${supportedFiles.length}]: ${file.name}`)
 
         if (isPdfFile(file)) {
           const pages = await extractPdfText(file)
@@ -206,7 +207,17 @@ export function useInvoiceManager() {
         const errorMsg = error instanceof Error ? error.message : '未知错误'
         stats.failedFiles.push({ name: file.name, error: errorMsg })
         console.error(`❌ 处理失败: ${file.name}`, error)
+      } finally {
+        completedCount++
+        progress.value.current = completedCount
+        progress.value.status = `处理 ${completedCount}/${supportedFiles.length}`
       }
+    }
+
+    // 分批并发处理
+    for (let i = 0; i < supportedFiles.length; i += CONCURRENCY) {
+      const batch = supportedFiles.slice(i, i + CONCURRENCY)
+      await Promise.all(batch.map((file, idx) => processFile(file, i + idx)))
     }
 
     isProcessing.value = false
