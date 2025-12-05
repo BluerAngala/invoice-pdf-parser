@@ -3,25 +3,21 @@
     <!-- 顶部导航 -->
     <header class="header">
       <div class="header-left">
-        <span class="logo">发票识别统计工具</span>
+        <span class="logo">发票识别统计工具 @陈恒律师自制</span>
       </div>
       <div class="header-center">
-        <button class="action-btn" @click="handleExportExcel">✅ 导出清单</button>
-        <button class="action-btn" @click="clearDuplicates">🗑️ 智能去重</button>
+        <div class="privacy-notice">
+          <span class="privacy-item">🔒 使用本地资源识别</span>
+          <span class="privacy-divider">|</span>
+          <span class="privacy-item">🛡️ 数据隐私保密，不作任何采集</span>
+        </div>
       </div>
       <div class="header-right">
-        <button class="icon-btn" @click="showSettings = true">设置</button>
+        <button class="action-btn" @click="handleExportExcel">📊 导出清单</button>
+        <button class="action-btn" @click="clearDuplicates">🗑️ 智能去重</button>
+        <button class="action-btn more-btn" @click="showMoreFeatures">🚀 更多功能</button>
       </div>
     </header>
-
-    <!-- 设置弹窗 -->
-    <SettingsModal
-      :show="showSettings"
-      :settings="settings"
-      :enable-duplicate-removal="enableDuplicateRemoval"
-      @close="showSettings = false"
-      @save="saveSettings"
-    />
 
     <div class="main-content">
       <!-- 左侧：发票列表 -->
@@ -65,17 +61,14 @@ import { ref } from 'vue'
 import InvoiceList from './components/InvoiceList.vue'
 import InvoicePreview from './components/InvoicePreview.vue'
 import InvoiceDetail from './components/InvoiceDetail.vue'
-import SettingsModal from './components/SettingsModal.vue'
 import { useInvoiceManager } from './composables/useInvoiceManager'
 import { useInvoiceExport } from './composables/useInvoiceExport'
-import { useAppSettings } from './composables/useAppSettings'
 
 // 发票管理
 const {
   invoices,
   currentInvoice,
   isProcessing,
-  enableDuplicateRemoval,
   progressPercent,
   uniqueTotalAmount,
   validInvoiceCount,
@@ -89,9 +82,6 @@ const {
 
 // 导出功能
 const { exportExcel } = useInvoiceExport()
-
-// 应用设置
-const { settings, showSettings, saveSettings } = useAppSettings()
 
 // UI 状态
 const listViewMode = ref<'grid' | 'list'>('list')
@@ -118,6 +108,18 @@ function resetZoom() {
 // 导出处理
 function handleExportExcel() {
   exportExcel(invoices.value)
+}
+
+// 更多功能
+function showMoreFeatures() {
+  alert(
+    '🚀 更多功能开发中...\n\n' +
+      '即将推出：\n' +
+      '• AI 自动识别\n' +
+      '• OCR 图片识别\n' +
+      '• 发票数据统计\n\n' +
+      '敬请期待！'
+  )
 }
 </script>
 
@@ -154,9 +156,30 @@ function handleExportExcel() {
 
 .header-center {
   display: flex;
-  gap: 10px;
+  gap: 15px;
   flex: 1;
   justify-content: center;
+  align-items: center;
+}
+
+.privacy-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #f6ffed 0%, #e6f7ff 100%);
+  border-radius: 20px;
+  border: 1px solid #b7eb8f;
+}
+
+.privacy-item {
+  font-size: 13px;
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.privacy-divider {
+  color: #d9d9d9;
 }
 
 .action-btn {
@@ -178,23 +201,19 @@ function handleExportExcel() {
 .header-right {
   display: flex;
   gap: 10px;
-  min-width: 50px;
   justify-content: flex-end;
 }
 
-.icon-btn {
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 6px;
-  font-size: 16px;
-  transition: all 0.3s;
+.more-btn {
+  background: #ff4d4f;
+  border-color: #ff4d4f;
+  color: white;
 }
 
-.icon-btn:hover {
-  background: #f0f0f0;
+.more-btn:hover {
+  background: #ff7875;
+  border-color: #ff7875;
+  color: white;
 }
 
 .main-content {

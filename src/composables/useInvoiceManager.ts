@@ -294,15 +294,24 @@ export function useInvoiceManager() {
       invoice.date = result.date
       invoice.seller = result.seller
       invoice.buyer = result.buyer
-      invoice.recognitionStatus = 'success'
 
-      const hasContent = result.invoiceNumber || result.invoiceCode || result.totalAmount > 0
-      if (!hasContent) {
-        console.warn(`⚠️ 未识别到有效内容: ${invoice.fileName}`)
+      // 处理错误信息
+      if (result.errorMessage) {
+        invoice.errorMessage = result.errorMessage
         invoice.recognitionStatus = 'error'
         invoice.status = 'invalid'
+        console.warn(`⚠️ ${invoice.fileName}: ${result.errorMessage}`)
       } else {
-        invoice.status = 'valid'
+        const hasContent = result.invoiceNumber || result.invoiceCode || result.totalAmount > 0
+        if (!hasContent) {
+          console.warn(`⚠️ 未识别到有效内容: ${invoice.fileName}`)
+          invoice.recognitionStatus = 'error'
+          invoice.status = 'invalid'
+          invoice.errorMessage = '未识别到有效内容'
+        } else {
+          invoice.recognitionStatus = 'success'
+          invoice.status = 'valid'
+        }
       }
 
       // 强制触发响应式更新
@@ -315,6 +324,7 @@ export function useInvoiceManager() {
       if (enableDuplicateRemoval.value) checkDuplicates(invoices.value, true)
 
       // 打印识别结果
+      const hasContent = result.invoiceNumber || result.invoiceCode || result.totalAmount > 0
       if (hasContent) {
         const latestInvoice = invoices.value.find(inv => inv.id === invoice.id)
         const statusTag = latestInvoice?.isDuplicate ? ' [重复]' : ' [原始]'
@@ -325,6 +335,7 @@ export function useInvoiceManager() {
     } catch (error) {
       invoice.recognitionStatus = 'error'
       const errorMsg = error instanceof Error ? error.message : '未知错误'
+      invoice.errorMessage = errorMsg
       console.error(`❌ 识别失败: ${invoice.fileName}`, errorMsg)
     }
   }

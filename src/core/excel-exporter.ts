@@ -1,5 +1,5 @@
 // Excel 导出器
-import * as XLSX from 'xlsx'
+import XLSX from 'xlsx-js-style'
 import type { Invoice } from '../types/invoice'
 
 export function exportToExcel(invoices: Invoice[]) {
@@ -17,48 +17,151 @@ export function exportToExcel(invoices: Invoice[]) {
     return dateA.localeCompare(dateB)
   })
 
-  // 准备数据：序号、发票号码、金额、开票日期、文件名
-  const data = sortedInvoices.map((inv, index) => ({
-    序号: index + 1,
-    发票号码: inv.invoiceNumber || '-',
-    金额: inv.totalAmount || 0,
-    开票日期: inv.date || '-',
-    文件名: inv.fileName
-  }))
-
   // 计算总金额
   const totalAmount = sortedInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0)
+  const invoiceCount = sortedInvoices.length
+
+  // 表头样式
+  const headerStyle = {
+    font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 },
+    fill: { fgColor: { rgb: '4472C4' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: '000000' } },
+      bottom: { style: 'thin', color: { rgb: '000000' } },
+      left: { style: 'thin', color: { rgb: '000000' } },
+      right: { style: 'thin', color: { rgb: '000000' } }
+    }
+  }
+
+  // 数据行样式
+  const dataStyle = {
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+      bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+      left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+      right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+    }
+  }
+
+  // 文件名样式（自动换行）
+  const fileNameStyle = {
+    alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+    border: {
+      top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+      bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+      left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+      right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+    }
+  }
+
+  // 金额样式
+  const amountStyle = {
+    ...dataStyle,
+    numFmt: '#,##0.00'
+  }
+
+  // 合计行样式
+  const totalStyle = {
+    font: { bold: true, sz: 12 },
+    fill: { fgColor: { rgb: 'FFF2CC' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: '000000' } },
+      bottom: { style: 'thin', color: { rgb: '000000' } },
+      left: { style: 'thin', color: { rgb: '000000' } },
+      right: { style: 'thin', color: { rgb: '000000' } }
+    }
+  }
+
+  const totalAmountStyle = {
+    ...totalStyle,
+    font: { bold: true, sz: 12, color: { rgb: 'FF0000' } },
+    numFmt: '#,##0.00'
+  }
+
+  // 构建数据
+  const headers = ['序号', '发票号码', '金额', '开票日期', '文件名']
+  const rows = sortedInvoices.map((inv, index) => [
+    index + 1,
+    inv.invoiceNumber || '-',
+    inv.totalAmount || 0,
+    inv.date || '-',
+    inv.fileName
+  ])
 
   // 添加合计行
-  data.push({
-    序号: '' as unknown as number,
-    发票号码: '合计',
-    金额: totalAmount,
-    开票日期: '',
-    文件名: ''
-  })
+  rows.push(['', '合计', totalAmount, '', ''])
 
   // 创建工作表
-  const ws = XLSX.utils.json_to_sheet(data)
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
 
   // 设置列宽
   ws['!cols'] = [
-    { wch: 6 },
-    { wch: 22 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 30 }
+    { wch: 8 },
+    { wch: 24 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 50 }
   ]
+
+  // 设置行高
+  ws['!rows'] = [{ hpt: 28 }]
+  for (let i = 1; i <= rows.length; i++) {
+    ws['!rows'][i] = { hpt: 24 }
+  }
+
+  // 应用表头样式
+  const cols = ['A', 'B', 'C', 'D', 'E']
+  cols.forEach(col => {
+    const cell = ws[`${col}1`]
+    if (cell) cell.s = headerStyle
+  })
+
+  // 应用数据行样式
+  for (let i = 2; i <= rows.length; i++) {
+    cols.forEach((col, colIndex) => {
+      const cell = ws[`${col}${i}`]
+      if (cell) {
+        if (colIndex === 2) {
+          cell.s = amountStyle
+        } else if (colIndex === 4) {
+          cell.s = fileNameStyle
+        } else {
+          cell.s = dataStyle
+        }
+      }
+    })
+  }
+
+  // 应用合计行样式
+  const totalRowIndex = rows.length + 1
+  cols.forEach((col, colIndex) => {
+    const cell = ws[`${col}${totalRowIndex}`]
+    if (cell) {
+      cell.s = colIndex === 2 ? totalAmountStyle : totalStyle
+    }
+  })
 
   // 创建工作簿
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, '发票清单')
 
-  // 导出文件
+  // 生成文件名：发票统计_总金额_发票数量_年月日时分秒
   const now = new Date()
-  const dateStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
-  const fileName = `发票统计_${dateStr}.xlsx`
-  XLSX.writeFile(wb, fileName)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  const dateTimeStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  const fileName = `发票统计_${totalAmount.toFixed(2)}元_${invoiceCount}张_${dateTimeStr}.xlsx`
 
-  console.log(`📊 导出成功: ${fileName}，共 ${sortedInvoices.length} 张发票，总金额: ${totalAmount}`)
+  // 使用浏览器兼容的方式下载文件
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+  const blob = new Blob([wbout], { type: 'application/octet-stream' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  a.click()
+  URL.revokeObjectURL(url)
+  console.log(`导出成功: ${fileName}`)
 }

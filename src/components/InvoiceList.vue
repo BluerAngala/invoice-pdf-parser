@@ -13,7 +13,7 @@
         ref="fileInput"
         type="file"
         multiple
-        accept="image/*,application/pdf,.pdf"
+        accept="application/pdf,.pdf"
         style="display: none"
         @change="handleFileChange"
       />
@@ -21,6 +21,7 @@
         ref="folderInput"
         type="file"
         webkitdirectory
+        accept="application/pdf,.pdf"
         style="display: none"
         @change="handleFileChange"
       />
@@ -32,7 +33,7 @@
           <span class="upload-divider">|</span>
           <span class="upload-link" @click.stop="triggerFolderUpload">📁 选择文件夹</span>
         </div>
-        <div class="upload-hint">支持 PDF, JPG, PNG 格式</div>
+        <div class="upload-hint">仅支持 PDF 格式</div>
       </button>
     </div>
 
@@ -100,8 +101,12 @@
               <div class="invoice-thumb">
                 <img :src="invoice.imageUrl" :alt="invoice.fileName" />
                 <div v-if="invoice.isDuplicate" class="status-tag duplicate">重复</div>
-                <div v-else-if="invoice.recognitionStatus === 'error'" class="status-tag error">
-                  失败
+                <div
+                  v-else-if="invoice.recognitionStatus === 'error'"
+                  class="status-tag error"
+                  :title="invoice.errorMessage"
+                >
+                  {{ invoice.errorMessage === '图片型PDF，暂不支持识别' ? '图片PDF' : '失败' }}
                 </div>
                 <div
                   v-else-if="invoice.recognitionStatus === 'processing'"
@@ -138,8 +143,11 @@
             <div
               v-else-if="group.invoices[0].recognitionStatus === 'error'"
               class="status-tag error"
+              :title="group.invoices[0].errorMessage"
             >
-              失败
+              {{
+                group.invoices[0].errorMessage === '图片型PDF，暂不支持识别' ? '图片PDF' : '失败'
+              }}
             </div>
             <div
               v-else-if="group.invoices[0].recognitionStatus === 'processing'"
