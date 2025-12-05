@@ -3,16 +3,14 @@
     <!-- 顶部导航 -->
     <header class="header">
       <div class="header-left">
-        <span class="logo">📄 智能发票管理工具</span>
+        <span class="logo">发票识别统计工具</span>
       </div>
       <div class="header-center">
-        <button class="action-btn" @click="handleExportPDF">📥 导出PDF</button>
-        <button class="action-btn" @click="handleExportExcel">📊 导出清单</button>
-        <button class="action-btn" @click="handlePrint">🖨️ 打印</button>
+        <button class="action-btn" @click="handleExportExcel">✅ 导出清单</button>
         <button class="action-btn" @click="clearDuplicates">🗑️ 智能去重</button>
       </div>
       <div class="header-right">
-        <button class="icon-btn" @click="showSettings = true">⚙️</button>
+        <button class="icon-btn" @click="showSettings = true">设置</button>
       </div>
     </header>
 
@@ -59,9 +57,6 @@
         @update="updateInvoiceField"
       />
     </div>
-
-    <!-- 打印预览区域(隐藏) -->
-    <div id="print-area" style="display: none" />
   </div>
 </template>
 
@@ -93,7 +88,7 @@ const {
 } = useInvoiceManager()
 
 // 导出功能
-const { exportExcel, exportPdf, print } = useInvoiceExport()
+const { exportExcel } = useInvoiceExport()
 
 // 应用设置
 const { settings, showSettings, saveSettings } = useAppSettings()
@@ -121,16 +116,8 @@ function resetZoom() {
 }
 
 // 导出处理
-function handleExportPDF() {
-  exportPdf(invoices.value)
-}
-
 function handleExportExcel() {
-  exportExcel(invoices.value, uniqueTotalAmount.value)
-}
-
-function handlePrint() {
-  print(invoices.value)
+  exportExcel(invoices.value)
 }
 </script>
 
@@ -214,21 +201,5 @@ function handlePrint() {
   flex: 1;
   display: flex;
   overflow: hidden;
-}
-
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  #print-area,
-  #print-area * {
-    visibility: visible;
-  }
-  #print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
 }
 </style>
